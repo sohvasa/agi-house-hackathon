@@ -27,3 +27,6 @@ asyncio>=3.4.3
 
 # Enum (included in standard library)
 # enum
+
+# MongoDB Integration
+pymongo>=4.5.0

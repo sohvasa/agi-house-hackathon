@@ -148,9 +148,13 @@ response = agent.chat("Go to example.com and extract the main content")
 
 ## Specialized Agents
 
-### StatuteAgent - Legal Research Assistant
+### StatuteAgent - Legal Statute Research
 
-The StatuteAgent is a specialized agent optimized for U.S. legal research using Perplexity's search capabilities.
+The StatuteAgent is a specialized agent optimized for U.S. legal statute research using Perplexity's search capabilities.
+
+### PrecedentAgent - Case Law Analysis
+
+The PrecedentAgent specializes in finding and analyzing case law precedents, providing mini-doc summaries for legal research.
 
 ```python
 from agents.statuteAgent import StatuteAgent
@@ -194,6 +198,62 @@ Run the StatuteAgent demo:
 python examples/statute_agent_demo.py
 ```
 
+### PrecedentAgent - Case Law Research
+
+The PrecedentAgent finds and analyzes case law precedents with mini-doc formatting for legal briefs.
+
+```python
+from agents.precedentAgent import PrecedentAgent
+
+# Create a precedent research agent
+precedent_agent = PrecedentAgent()
+
+# Quick search returns mini-doc format
+result = precedent_agent.quick_search(
+    "Find a famous case involving trade secret misappropriation"
+)
+print(result)
+# Output: 
+# Case: Waymo v. Uber (2017)
+# Citation: N.D. Cal., 2017
+# Holding: Court granted injunction where employee downloaded 14,000 confidential files.
+# Rule: Misappropriation more likely when forensic evidence + NDA.
+# Relevance: Supports Plaintiff if NDA + logs exist; weakens Defense unless evidence is circumstantial.
+```
+
+**Key Features:**
+- **Mini-Doc Format**: Concise case summaries with citation, holding, and rule
+- **Case Analysis**: Extracts holdings, rules, facts, and reasoning
+- **Relevance Analysis**: Evaluates relevance for plaintiffs and defendants
+- **Landmark Cases**: Identifies seminal cases in specific areas of law
+- **Circuit Analysis**: Analyzes circuit splits and different approaches
+- **Case Comparison**: Compares precedents for similarities and differences
+- **Confidence Scoring**: Rates extraction quality for each case
+
+**Example Searches:**
+```python
+# Find specific types of cases
+agent.find_precedents(
+    "employee downloaded confidential files trade secret",
+    jurisdiction="federal",
+    num_cases=5
+)
+
+# Get landmark cases in an area
+landmark_cases = agent.get_landmark_cases("trade secrets", num_cases=10)
+
+# Analyze circuit splits
+circuit_cases = agent.analyze_circuit_split("inevitable disclosure doctrine")
+
+# Compare two cases
+comparison = agent.compare_precedents("Waymo v. Uber", "E.I. DuPont v. Kolon")
+```
+
+Run the PrecedentAgent test:
+```bash
+python test_precedent_agent.py
+```
+
 ## Examples
 
 Run comprehensive BaseAgent examples:
@@ -215,13 +275,16 @@ Examples include:
 agi-house-hackathon/
 ├── agents/
 │   ├── baseAgent.py         # Main BaseAgent class
-│   └── statuteAgent.py      # Specialized legal research agent
+│   ├── statuteAgent.py      # Legal statute research agent
+│   └── precedentAgent.py    # Case law precedent agent
 ├── util/
 │   ├── perplexity.py        # Perplexity search integration
 │   └── browseruse.py        # Browser automation
 ├── examples/
 │   ├── agent_examples.py    # BaseAgent usage examples
 │   └── statute_agent_demo.py # StatuteAgent demonstrations
+├── test_precedent_agent.py  # PrecedentAgent test script
+├── test_statute_comprehensive.py # StatuteAgent comprehensive test
 ├── requirements.txt         # Dependencies
 ├── .env                     # API keys (create this)
 └── README.md               # Documentation
