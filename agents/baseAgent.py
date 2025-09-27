@@ -7,6 +7,7 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 from dotenv import load_dotenv
 import google.generativeai as genai
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 # Import helper agents for tool usage
 import sys
@@ -118,12 +119,23 @@ class BaseAgent:
         
         # Initialize Gemini
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        
+        # Configure safety settings to be as permissive as possible
+        # This is important for legal simulations which may discuss sensitive topics
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+        
         self.model = genai.GenerativeModel(
             model_name=model_name,
             generation_config={
                 "temperature": temperature,
                 "max_output_tokens": max_output_tokens,
-            }
+            },
+            safety_settings=safety_settings
         )
         
         # Initialize chat history

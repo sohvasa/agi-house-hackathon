@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test</title>
+</head>
+<body>
+    <h1>CORS Test for Legal Simulation API</h1>
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    <button onclick="testSimulations()">Test Simulations Endpoint</button>
+    <button onclick="testStatistics()">Test Statistics Endpoint</button>
+    
+    <h2>Results:</h2>
+    <pre id="results"></pre>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:5000';
+        const resultsDiv = document.getElementById('results');
+
+        async function testHealth() {
+            resultsDiv.textContent = 'Testing /health endpoint...\n';
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                resultsDiv.textContent += `✅ Health endpoint working!\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultsDiv.textContent += `❌ Health endpoint failed: ${error.message}`;
+            }
+        }
+
+        async function testSimulations() {
+            resultsDiv.textContent = 'Testing /api/simulations endpoint...\n';
+            try {
+                const response = await fetch(`${API_URL}/api/simulations?limit=20`);
+                const data = await response.json();
+                resultsDiv.textContent += `✅ Simulations endpoint working!\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultsDiv.textContent += `❌ Simulations endpoint failed: ${error.message}`;
+            }
+        }
+
+        async function testStatistics() {
+            resultsDiv.textContent = 'Testing /api/statistics endpoint...\n';
+            try {
+                const response = await fetch(`${API_URL}/api/statistics`);
+                const data = await response.json();
+                resultsDiv.textContent += `✅ Statistics endpoint working!\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultsDiv.textContent += `❌ Statistics endpoint failed: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

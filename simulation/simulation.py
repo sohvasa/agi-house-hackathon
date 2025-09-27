@@ -421,6 +421,7 @@ class DefenseAgent(BaseAgent):
 class JudgeAgent(BaseAgent):
     """
     Judge Agent - Evaluates arguments from both sides and renders verdict.
+    Uses relaxed safety settings to prevent filtering of legal discussions.
     """
     
     def __init__(self,

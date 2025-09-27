@@ -1,0 +1,6 @@
+# Backend dependencies for Flask server
+flask==3.0.0
+flask-cors==4.0.0
+python-dotenv==1.0.0
+pymongo==4.5.0
+# Note: Do NOT install standalone 'bson' package - it conflicts with pymongo's built-in bson

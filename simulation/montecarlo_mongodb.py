@@ -29,6 +29,8 @@ from simulation.montecarlo import (
     SimulationResult,
     MonteCarloAnalysis
 )
+from simulation.enhanced_trial import EnhancedLegalSimulation
+from datetime import timedelta
 
 
 @dataclass
@@ -112,6 +114,7 @@ class MongoEnhancedMonteCarloSimulation(EnhancedMonteCarloSimulation):
                                    case_id: str) -> CaseSimulation:
         """
         Convert a SimulationResult to a CaseSimulation for MongoDB storage.
+        Uses enhanced formatting for full content and proper timestamps.
         
         Args:
             result: SimulationResult from the simulation
@@ -120,69 +123,99 @@ class MongoEnhancedMonteCarloSimulation(EnhancedMonteCarloSimulation):
         Returns:
             CaseSimulation object ready for MongoDB
         """
-        # Convert arguments to messages
+        # Create an enhanced simulation helper for formatting
+        enhanced_sim = EnhancedLegalSimulation(
+            prosecutor_strategy=result.variables.prosecutor_strategy,
+            defense_strategy=result.variables.defense_strategy,
+            judge_temperament=result.variables.judge_temperament
+        )
+        enhanced_sim.case_evidence = self.evidence
+        
+        # Generate messages with proper timestamps
+        start_time = datetime.now()
         messages = []
+        time_offset = 0
         
-        # Add prosecutor arguments as messages
-        for arg in result.prosecutor_arguments:
-            messages.append(AgentMessage(
-                agent_name="ProsecutorAgent",
-                role="assistant",
-                content=arg.main_argument,
-                timestamp=datetime.now(),
-                metadata={
-                    "argument_type": arg.argument_type.value,
-                    "cited_statutes": arg.cited_statutes,
-                    "cited_precedents": arg.cited_precedents,
-                    "key_points": arg.key_points
-                }
-            ))
+        # Interleave prosecutor and defense arguments properly
+        max_args = max(len(result.prosecutor_arguments), len(result.defense_arguments))
         
-        # Add defense arguments as messages
-        for arg in result.defense_arguments:
-            messages.append(AgentMessage(
-                agent_name="DefenseAgent",
-                role="assistant",
-                content=arg.main_argument,
-                timestamp=datetime.now(),
-                metadata={
-                    "argument_type": arg.argument_type.value,
-                    "cited_statutes": arg.cited_statutes,
-                    "cited_precedents": arg.cited_precedents,
-                    "key_points": arg.key_points
-                }
-            ))
+        for i in range(max_args):
+            # Add prosecutor argument if available
+            if i < len(result.prosecutor_arguments):
+                arg = result.prosecutor_arguments[i]
+                # Get full content (not truncated)
+                full_content = enhanced_sim._get_full_argument_content(arg)
+                
+                messages.append(AgentMessage(
+                    agent_name="Prosecutor",
+                    role="assistant",
+                    content=full_content,
+                    timestamp=start_time + timedelta(seconds=time_offset),
+                    metadata={
+                        "argument_type": arg.argument_type.value,
+                        "cited_statutes": arg.cited_statutes,
+                        "cited_precedents": arg.cited_precedents,
+                        "key_points": arg.key_points,
+                        "phase": f"round_{i+1}"
+                    }
+                ))
+                time_offset += 30  # 30 seconds per argument
+            
+            # Add defense argument if available
+            if i < len(result.defense_arguments):
+                arg = result.defense_arguments[i]
+                # Get full content (not truncated)
+                full_content = enhanced_sim._get_full_argument_content(arg)
+                
+                messages.append(AgentMessage(
+                    agent_name="Defense",
+                    role="assistant",
+                    content=full_content,
+                    timestamp=start_time + timedelta(seconds=time_offset),
+                    metadata={
+                        "argument_type": arg.argument_type.value,
+                        "cited_statutes": arg.cited_statutes,
+                        "cited_precedents": arg.cited_precedents,
+                        "key_points": arg.key_points,
+                        "phase": f"round_{i+1}"
+                    }
+                ))
+                time_offset += 30  # 30 seconds per argument
         
-        # Add verdict as final message
+        # Add verdict with full formatting
+        full_verdict = enhanced_sim._format_full_verdict(result.verdict)
         messages.append(AgentMessage(
-            agent_name="JudgeAgent",
+            agent_name="Judge",
             role="assistant",
-            content=result.verdict.rationale,
-            timestamp=datetime.now(),
+            content=full_verdict,
+            timestamp=start_time + timedelta(seconds=time_offset),
             metadata={
                 "verdict": result.verdict.winner,
                 "confidence": result.verdict.confidence_score,
                 "key_factors": result.verdict.key_factors,
-                "cited_authorities": result.verdict.cited_authorities
+                "cited_authorities": result.verdict.cited_authorities,
+                "phase": "verdict"
             }
         ))
         
-        # Create CaseSimulation
+        # Create CaseSimulation with properly ordered messages
         return CaseSimulation(
             case_id=case_id,
             case_name=f"Simulation #{result.simulation_id} - {self.case_description[:50]}",
             simulation_type="monte_carlo_trial",
-            agents_involved=["ProsecutorAgent", "DefenseAgent", "JudgeAgent"],
-            chat_history=messages,
+            agents_involved=["Prosecutor", "Defense", "Judge"],
+            chat_history=messages,  # Already in proper time order
             status=SimulationStatus.COMPLETED,
-            created_at=datetime.now(),
+            created_at=start_time,
             updated_at=datetime.now(),
-            completed_at=datetime.now(),
+            completed_at=start_time + timedelta(seconds=time_offset),
             metadata={
                 "monte_carlo_id": self.monte_carlo_id,
                 "simulation_id": result.simulation_id,
                 "variables": result.variables.to_dict(),
-                "execution_time": result.execution_time
+                "execution_time": result.execution_time,
+                "total_messages": len(messages),
+                "trial_duration_seconds": time_offset
             },
             outcome=result.verdict.winner,
             summary=f"Verdict: {result.verdict.winner} wins with {result.verdict.confidence_score:.1%} confidence"
@@ -193,6 +226,7 @@ class MongoEnhancedMonteCarloSimulation(EnhancedMonteCarloSimulation):
                             variables: SimulationVariables) -> SimulationResult:
         """
         Run a single simulation and optionally save to MongoDB.
+        For single simulations (n=1), uses enhanced trial for richer dialogue.
         
         Args:
             simulation_id: Unique simulation identifier
@@ -201,13 +235,64 @@ class MongoEnhancedMonteCarloSimulation(EnhancedMonteCarloSimulation):
         Returns:
             SimulationResult
         """
-        # Run the base simulation
+        # Check if this is a single simulation request
+        is_single_sim = (simulation_id == 1 and not hasattr(self, '_is_monte_carlo_batch'))
+        
+        if is_single_sim and self.auto_save and self.db_manager:
+            # Use enhanced trial for better dialogue in single simulations
+            print("  Using enhanced trial format for richer dialogue...")
+            
+            # Create enhanced simulation
+            enhanced_sim = EnhancedLegalSimulation(
+                prosecutor_strategy=variables.prosecutor_strategy,
+                defense_strategy=variables.defense_strategy,
+                judge_temperament=variables.judge_temperament
+            )
+            
+            # Set evidence
+            enhanced_sim.case_evidence = self.evidence
+            
+            # Run extended trial with more exchanges
+            messages, verdict = enhanced_sim.run_extended_trial(
+                num_exchanges=3,  # 3 rounds of back-and-forth for single sim
+                include_procedural=True  # Include judge's procedural messages
+            )
+            
+            # Create result for compatibility
+            result = SimulationResult(
+                simulation_id=simulation_id,
+                variables=variables,
+                prosecutor_arguments=[],  # Already captured in messages
+                defense_arguments=[],  # Already captured in messages
+                verdict=verdict,
+                execution_time=len(messages) * 2  # Approximate time
+            )
+            
+            # Save enhanced trial to MongoDB
+            try:
+                case_sim = enhanced_sim.convert_to_case_simulation(
+                    messages,
+                    f"CASE_{self.monte_carlo_id}",
+                    simulation_id
+                )
+                
+                sim_id = self.db_manager.save_simulation(case_sim)
+                self.saved_simulation_ids.append(sim_id)
+                print(f"    → Saved enhanced trial to MongoDB: {sim_id}")
+                print(f"    → Total messages: {len(messages)}")
+                
+            except Exception as e:
+                print(f"    ⚠ Failed to save to MongoDB: {e}")
+            
+            return result
+        
+        # For Monte Carlo batch simulations, use standard format
         result = super().run_single_simulation(simulation_id, variables)
         
         # Save to MongoDB if auto_save is enabled
         if self.auto_save and self.db_manager:
             try:
-                # Convert to CaseSimulation
+                # Convert to CaseSimulation with enhanced formatting
                 case_sim = self._convert_to_case_simulation(
                     result, 
                     f"CASE_{self.monte_carlo_id}"
@@ -238,6 +323,10 @@ class MongoEnhancedMonteCarloSimulation(EnhancedMonteCarloSimulation):
         Returns:
             Statistical analysis of results
         """
+        # Mark this as a batch Monte Carlo run
+        if n_simulations > 1:
+            self._is_monte_carlo_batch = True
+        
         # Create initial Monte Carlo document in MongoDB
         if self.auto_save and self.db_manager:
             self._create_monte_carlo_document(n_simulations)
@@ -248,6 +337,10 @@ class MongoEnhancedMonteCarloSimulation(EnhancedMonteCarloSimulation):
         # Update Monte Carlo document with results
         if self.auto_save and self.db_manager:
             self._update_monte_carlo_document(analysis)
+        
+        # Clear the batch flag
+        if hasattr(self, '_is_monte_carlo_batch'):
+            delattr(self, '_is_monte_carlo_batch')
         
         return analysis
     
