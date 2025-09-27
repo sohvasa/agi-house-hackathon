@@ -203,6 +203,7 @@ class Verdict:
 - Python 3.8+
 - Google Gemini API key (for agent reasoning)
 - Perplexity API key (optional, for enhanced research)
+- MongoDB connection (optional, for persistent storage)
 - See `requirements.txt` for full dependencies
 
 ## Installation
@@ -214,9 +215,13 @@ pip install -r requirements.txt
 # Set up API keys in .env
 echo "GEMINI_API_KEY=your_key_here" >> .env
 echo "PERPLEXITY_API_KEY=your_key_here" >> .env  # Optional
+echo "MONGODB_CONNECTION_STRING=your_mongodb_uri" >> .env  # Optional
 
 # Run test suite
 python test_simulation.py
+
+# Test MongoDB integration (optional)
+python test_mongodb_integration.py
 
 # Run demo
 python examples/simulation_demo.py
@@ -297,8 +302,73 @@ strategy_prompts = {
 3. **Evidence Quality**: Depends on the quality of research agents
 4. **Computational Cost**: Monte Carlo simulations can be expensive with many trials
 
+## MongoDB Integration
+
+The simulation system supports saving results to MongoDB for persistent storage and analysis:
+
+### Features
+- **Individual Simulation Storage**: Each simulation saved as a separate document
+- **Monte Carlo Linking**: All simulations in a run linked via a master document
+- **Rich Metadata**: Complete chat histories, strategies, and outcomes stored
+- **Query Capabilities**: Search simulations by various criteria
+- **Analysis Tools**: Retrieve and analyze historical simulations
+
+### Usage
+
+```python
+from simulation.montecarlo_mongodb import MongoEnhancedMonteCarloSimulation
+from database.mongodb_manager import MongoDBManager
+
+# Initialize with MongoDB
+db_manager = MongoDBManager()
+mc_sim = MongoEnhancedMonteCarloSimulation(
+    case_description="Your case...",
+    db_manager=db_manager,
+    auto_save=True  # Automatically save to MongoDB
+)
+
+# Run simulations (automatically saved)
+analysis = mc_sim.run_simulations(n_simulations=10)
+
+# Retrieve saved simulations
+summary = mc_sim.get_monte_carlo_summary()
+print(f"Monte Carlo ID: {mc_sim.monte_carlo_id}")
+print(f"Saved {len(mc_sim.saved_simulation_ids)} simulations")
+```
+
+### Retrieval
+
+```python
+# Retrieve by Monte Carlo ID
+from examples.retrieve_monte_carlo import retrieve_monte_carlo_by_id
+
+mc_data = retrieve_monte_carlo_by_id(db_manager, "MC_20241027_143022")
+
+# Query simulations
+simulations = db_manager.search_simulations(
+    case_name="TechCorp",
+    simulation_type="monte_carlo_trial",
+    status=SimulationStatus.COMPLETED
+)
+```
+
+### MongoDB Schema
+
+**case_simulations Collection:**
+- Stores individual simulation runs
+- Full chat history with agent messages
+- Metadata including strategies and variables
+- Links to Monte Carlo run via metadata
+
+**case_research Collection:**
+- Stores Monte Carlo master documents
+- Links to all simulation IDs in the run
+- Analysis results and key findings
+- Research data (statutes, precedents)
+
 ## Future Enhancements
 
+- [x] MongoDB integration for persistent storage
 - [ ] Support for more case types beyond trade secrets
 - [ ] Integration with real legal databases
 - [ ] Multi-round negotiations

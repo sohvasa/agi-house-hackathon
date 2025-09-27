@@ -1,0 +1,51 @@
+{
+  "case_description": "\n    SolarTech Industries is suing former Chief Technology Officer Dr. Sarah Chen \n    for trade secret misappropriation related to proprietary solar panel efficiency \n    optimization algorithms.\n    \n    Background:\n    - Dr. Chen worked at SolarTech for 5 years and signed a comprehensive NDA\n    - She had full access to the company's core algorithmic IP\n    - She left to found her own startup, BrightEnergy Solutions\n    - 4 months after her departure, BrightEnergy announced a breakthrough solar \n      optimization system with 85% similarity to SolarTech's technology\n    \n    Evidence:\n    - Email records show Dr. Chen sent large attachments to personal email 2 days before resignation\n    - GitHub commit logs show unusual activity in proprietary repos during final week\n    - Former colleague testified that Dr. Chen mentioned \"taking her work with her\"\n    - BrightEnergy's patent filing contains equations nearly identical to SolarTech's\n    \n    Defense Claims:\n    - Dr. Chen developed similar ideas independently based on public research\n    - The algorithms are based on well-known mathematical principles\n    - No direct code was copied, only concepts were similar\n    - Dr. Chen's personal research predates her time at SolarTech\n    \n    The case is filed in the Northern District of California.\n    ",
+  "jurisdiction": "Federal",
+  "research_summary": {
+    "statutes_found": 2,
+    "precedents_found": 2,
+    "key_statute": "18 U.S.C. \u00a7 1836",
+    "key_precedent": "Case re: trade secret misappropriation "
+  },
+  "simulations": [
+    {
+      "simulation_id": 1,
+      "variables": {
+        "prosecutor_strategy": "aggressive",
+        "defense_strategy": "moderate",
+        "judge_temperament": "balanced",
+        "has_nda": true,
+        "evidence_strength": "strong",
+        "venue_bias": "neutral",
+        "num_statutes_cited": 3,
+        "num_precedents_cited": 3,
+        "include_rebuttals": true,
+        "defendant_cooperation": "moderate",
+        "plaintiff_damages_claim": "extensive",
+        "time_since_departure": 4,
+        "competitor_relationship": "direct"
+      },
+      "verdict": {
+        "winner": "defendant",
+        "outcome": 0,
+        "confidence": 0.7,
+        "key_factors": [
+          "Evidence strength",
+          "Legal precedent"
+        ],
+        "rationale": "Response filtered for safety. Please rephrase your request."
+      },
+      "num_prosecutor_args": 2,
+      "num_defense_args": 2,
+      "execution_time": 70.478865,
+      "timestamp": "2025-09-27T15:18:59.812788"
+    }
+  ],
+  "timestamp": "2025-09-27T15:18:59.813212",
+  "summary": {
+    "total_simulations": 1,
+    "plaintiff_wins": 0,
+    "defense_wins": 1,
+    "note": "Full analysis requires multiple simulations. Run run_simulations() for complete statistics."
+  }
+}

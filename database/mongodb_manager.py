@@ -8,7 +8,7 @@ Implements two main collections:
 import os
 import json
 from typing import List, Dict, Any, Optional, Union
-from datetime import datetime
+from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict, field
 from enum import Enum
 import pymongo

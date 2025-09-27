@@ -30,3 +30,6 @@ asyncio>=3.4.3
 
 # MongoDB Integration
 pymongo>=4.5.0
+
+# Scientific computing for Monte Carlo analysis
+numpy>=1.24.0

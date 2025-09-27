@@ -293,7 +293,25 @@ When you need to use a tool, include the tool call in your response using the ex
         try:
             # Generate response with Gemini
             response = self.model.generate_content(full_prompt)
-            response_text = response.text
+            
+            # Handle potential response issues
+            try:
+                response_text = response.text
+            except Exception as text_error:
+                # Fallback when response.text fails (e.g., safety filters, API issues)
+                if hasattr(response, 'candidates') and response.candidates:
+                    candidate = response.candidates[0]
+                    if hasattr(candidate, 'finish_reason'):
+                        if candidate.finish_reason == 2:  # SAFETY
+                            response_text = "Response filtered for safety. Please rephrase your request."
+                        elif candidate.finish_reason == 3:  # RECITATION
+                            response_text = "Response blocked due to potential copyright concerns."
+                        else:
+                            response_text = f"Response unavailable (reason: {candidate.finish_reason})"
+                    else:
+                        response_text = "Response generation failed. Please try again."
+                else:
+                    response_text = f"API response error: {str(text_error)[:100]}"
             
             # Check for tool calls in the response
             if self.enable_tools and self.auto_execute_tools:
@@ -332,7 +350,10 @@ When you need to use a tool, include the tool call in your response using the ex
 Please provide a comprehensive response to the user's query: {message}"""
                     
                     final_response = self.model.generate_content(followup_prompt)
-                    response_text = final_response.text
+                    try:
+                        response_text = final_response.text
+                    except Exception:
+                        response_text = "Follow-up response unavailable. Tool results processed."
             
             # Add assistant response to history
             self._add_message(MessageRole.ASSISTANT, response_text, metadata)
@@ -370,7 +391,25 @@ Please provide a comprehensive response to the user's query: {message}"""
         try:
             # Generate response with Gemini (async)
             response = await self.model.generate_content_async(full_prompt)
-            response_text = response.text
+            
+            # Handle potential response issues
+            try:
+                response_text = response.text
+            except Exception as text_error:
+                # Fallback when response.text fails (e.g., safety filters, API issues)
+                if hasattr(response, 'candidates') and response.candidates:
+                    candidate = response.candidates[0]
+                    if hasattr(candidate, 'finish_reason'):
+                        if candidate.finish_reason == 2:  # SAFETY
+                            response_text = "Response filtered for safety. Please rephrase your request."
+                        elif candidate.finish_reason == 3:  # RECITATION
+                            response_text = "Response blocked due to potential copyright concerns."
+                        else:
+                            response_text = f"Response unavailable (reason: {candidate.finish_reason})"
+                    else:
+                        response_text = "Response generation failed. Please try again."
+                else:
+                    response_text = f"API response error: {str(text_error)[:100]}"
             
             # Check for tool calls in the response
             if self.enable_tools and self.auto_execute_tools:
@@ -409,7 +448,10 @@ Please provide a comprehensive response to the user's query: {message}"""
 Please provide a comprehensive response to the user's query: {message}"""
                     
                     final_response = await self.model.generate_content_async(followup_prompt)
-                    response_text = final_response.text
+                    try:
+                        response_text = final_response.text
+                    except Exception:
+                        response_text = "Follow-up response unavailable. Tool results processed."
             
             # Add assistant response to history
             self._add_message(MessageRole.ASSISTANT, response_text, metadata)
