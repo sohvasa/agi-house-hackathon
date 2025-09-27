@@ -1,0 +1,29 @@
+# Google Gemini API
+google-generativeai>=0.8.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# HTTP requests for Perplexity API
+requests>=2.31.0
+
+# Browser automation
+browser-use-sdk>=0.1.0
+
+# Async support (included in Python 3.7+, but specified for clarity)
+asyncio>=3.4.3
+
+# JSON handling (included in standard library)
+# json
+
+# Datetime handling (included in standard library)
+# datetime
+
+# Type hints (included in standard library)
+# typing
+
+# Dataclasses (included in Python 3.7+)
+# dataclasses
+
+# Enum (included in standard library)
+# enum
