@@ -12,7 +12,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #f8fafb 0%, #e5e9f0 100%);
+  background: #f8fafb;
   color: #1e293b;
   min-height: 100vh;
   line-height: 1.6;
@@ -31,19 +31,19 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-  background: linear-gradient(180deg, #f8fafb, #e5e9f0);
+  background: #f8fafb;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #94a3b8, #64748b);
+  background: #94a3b8;
   border-radius: 10px;
   border: 2px solid #f8fafb;
   transition: all 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #4299e1, #2c5282);
+  background: #4299e1;
   border-color: #e5e9f0;
 }
 

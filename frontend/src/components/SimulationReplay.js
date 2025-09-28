@@ -39,6 +39,58 @@ const AGENT_PROFILES = {
   }
 };
 
+// Function to parse and format text with markdown-style formatting
+function formatMessageText(text) {
+  if (!text) return text;
+  
+  // Split text by ** markers for bold
+  const parts = text.split(/\*\*/);
+  
+  return parts.map((part, index) => {
+    // Odd indices are bold text (between ** markers)
+    if (index % 2 === 1) {
+      return <strong key={index} className="formatted-bold">{part}</strong>;
+    }
+    
+    // Even indices are regular text
+    // Further split by bullet points for better formatting
+    const lines = part.split('\n');
+    return lines.map((line, lineIndex) => {
+      // Check if line starts with bullet point
+      if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
+        const bulletContent = line.replace(/^\s*[•\-]\s*/, '');
+        return (
+          <div key={`${index}-${lineIndex}`} className="bullet-point">
+            <span className="bullet-marker">•</span>
+            <span className="bullet-content">{bulletContent}</span>
+          </div>
+        );
+      }
+      
+      // Check if line is a section header (ends with :)
+      if (line.trim().endsWith(':') && line.trim().length > 1) {
+        return (
+          <div key={`${index}-${lineIndex}`} className="section-header">
+            {line}
+          </div>
+        );
+      }
+      
+      // Regular line
+      if (line.trim()) {
+        return (
+          <div key={`${index}-${lineIndex}`} className="text-line">
+            {line}
+          </div>
+        );
+      }
+      
+      // Empty line for spacing
+      return <br key={`${index}-${lineIndex}`} />;
+    });
+  }).flat();
+}
+
 function SimulationReplay() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -198,7 +250,17 @@ function SimulationReplay() {
   if (loading) {
     return (
       <div className="loading-container">
-        <div className="spinner spinner-lg"></div>
+        <div className="loading-animation">
+          <div className="loading-ring"></div>
+          <div className="loading-ring"></div>
+          <div className="loading-ring"></div>
+        </div>
+        <div className="loading-text">Loading Simulation</div>
+        <div className="loading-dots">
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+        </div>
       </div>
     );
   }
@@ -229,20 +291,7 @@ function SimulationReplay() {
           <button onClick={() => navigate('/dashboard')} className="back-button">
             ← Back
           </button>
-          <div>
-            <h2>{simulation.case_name}</h2>
-            <div className="replay-meta">
-              <span className="meta-item">Case ID: {simulation.case_id}</span>
-              <span className="meta-item">•</span>
-              <span className="meta-item">Type: {simulation.simulation_type}</span>
-              <span className="meta-item">•</span>
-              <span className="meta-item">
-                Outcome: <span className={`outcome-badge ${simulation.outcome}`}>
-                  {simulation.outcome} wins
-                </span>
-              </span>
-            </div>
-          </div>
+          <h2>{simulation.case_name}</h2>
         </div>
         
         <div className="replay-controls">
@@ -292,7 +341,7 @@ function SimulationReplay() {
           
           {displayedMessages.map((message, index) => {
             const profile = getAgentProfile(message.agent_name);
-            const isJudge = message.agent_name === 'JudgeAgent';
+            const isJudge = message.agent_name === 'JudgeAgent' || message.agent_name === 'Judge';
             
             return (
               <div
@@ -314,8 +363,16 @@ function SimulationReplay() {
                     </span>
                   </div>
                   <div className="message-text">
-                    {message.content}
-                    {message.isTyping && <span className="typing-cursor">|</span>}
+                    {message.isTyping ? (
+                      <>
+                        {message.content}
+                        <span className="typing-cursor">|</span>
+                      </>
+                    ) : (
+                      <div className="formatted-content">
+                        {formatMessageText(message.content)}
+                      </div>
+                    )}
                   </div>
                   {message.metadata && (
                     <>

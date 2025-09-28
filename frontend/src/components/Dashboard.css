@@ -16,10 +16,7 @@
 .dashboard-header h2 {
   font-size: 2.25rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #2c5282 0%, #4299e1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #1e293b;
   margin: 0;
   letter-spacing: -0.5px;
 }
@@ -34,13 +31,13 @@
 }
 
 .stat-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafb 100%);
+  background: #ffffff;
   padding: 2rem;
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(44, 82, 130, 0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   text-align: center;
   border: 1px solid #e5e9f0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
@@ -52,14 +49,14 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #4299e1, #2c5282);
+  background: #4299e1;
   transform: translateX(-100%);
   transition: transform 0.3s ease;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(44, 82, 130, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card:hover::before {
@@ -69,10 +66,7 @@
 .stat-value {
   font-size: 3rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #2c5282 0%, #4299e1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #4299e1;
   margin-bottom: 0.5rem;
   animation: countUp 1s ease-out;
 }
@@ -108,7 +102,7 @@
   transform: translateY(-50%);
   width: 4px;
   height: 24px;
-  background: linear-gradient(180deg, #4299e1, #2c5282);
+  background: #4299e1;
   border-radius: 2px;
 }
 
@@ -121,12 +115,12 @@
 
 .simulation-card {
   position: relative;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafb 100%);
+  background: #ffffff;
   border-radius: 16px;
   padding: 1.75rem;
   border: 1px solid #e5e9f0;
-  box-shadow: 0 4px 20px rgba(44, 82, 130, 0.08);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
   animation: slideUp 0.6s ease-out;
   animation-fill-mode: both;
 }
@@ -139,8 +133,8 @@
 .simulation-card:nth-child(6) { animation-delay: 0.6s; }
 
 .simulation-card:hover {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 12px 40px rgba(44, 82, 130, 0.18);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   border-color: #cbd5e1;
 }
 
@@ -219,7 +213,7 @@
   line-height: 1.6;
   margin-bottom: 1.25rem;
   padding: 1rem;
-  background: linear-gradient(135deg, #f8fafb 0%, #eff3f8 100%);
+  background: #f8fafb;
   border-radius: 10px;
   border-left: 3px solid #4299e1;
 }
@@ -234,9 +228,9 @@
 .empty-state {
   text-align: center;
   padding: 4rem 3rem;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafb 100%);
+  background: #ffffff;
   border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(44, 82, 130, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   border: 2px dashed #cbd5e1;
   animation: fadeInUp 0.8s ease-out;
 }
@@ -411,7 +405,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #4299e1, #2c5282);
+  background: #4299e1;
   border-radius: 16px 16px 0 0;
   transform: scaleX(0);
   transition: transform 0.3s ease;
@@ -434,27 +428,27 @@
 }
 
 .badge-success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #10b981;
   color: white;
 }
 
 .badge-warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: #f59e0b;
   color: white;
 }
 
 .badge-danger {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: #ef4444;
   color: white;
 }
 
 .badge-primary {
-  background: linear-gradient(135deg, #4299e1 0%, #2c5282 100%);
+  background: #4299e1;
   color: white;
 }
 
 .badge-secondary {
-  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  background: #64748b;
   color: white;
 }
 
