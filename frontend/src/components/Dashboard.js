@@ -50,8 +50,8 @@ function Dashboard() {
   };
 
   const getOutcomeBadgeClass = (outcome) => {
-    if (outcome === 'plaintiff') return 'badge badge-primary';
-    if (outcome === 'defendant') return 'badge badge-secondary';
+    if (outcome?.toLowerCase() === 'plaintiff' || outcome?.toLowerCase() === 'plaintiff wins') return 'badge badge-primary';
+    if (outcome?.toLowerCase() === 'defendant' || outcome?.toLowerCase() === 'defendant wins') return 'badge badge-secondary';
     return 'badge badge-secondary';
   };
 
@@ -63,7 +63,17 @@ function Dashboard() {
   if (loading) {
     return (
       <div className="loading-container">
-        <div className="spinner spinner-lg"></div>
+        <div className="loading-animation">
+          <div className="loading-ring"></div>
+          <div className="loading-ring"></div>
+          <div className="loading-ring"></div>
+        </div>
+        <div className="loading-text">Loading Simulations</div>
+        <div className="loading-dots">
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+        </div>
       </div>
     );
   }
@@ -146,7 +156,7 @@ function Dashboard() {
                   <div className="simulation-outcome">
                     <span className="outcome-label">Outcome:</span>
                     <span className={getOutcomeBadgeClass(sim.outcome)}>
-                      {sim.outcome} wins
+                      {sim.outcome.includes('wins') ? sim.outcome : `${sim.outcome} wins`}
                     </span>
                   </div>
                 )}

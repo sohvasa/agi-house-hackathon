@@ -52,7 +52,7 @@ from agents.baseAgent import BaseAgent
 agent = BaseAgent(
     name="Assistant",
     system_prompt="You are a helpful AI assistant.",
-    model_name="gemini-1.5-flash",
+    model_name="gemini-2.5-pro",
     temperature=0.7
 )
 
@@ -98,9 +98,9 @@ response = analyst.send_to_agent("Strategist", "What's our Q1 strategy?")
 |-----------|------|---------|-------------|
 | `name` | str | Required | Agent identifier |
 | `system_prompt` | str | "" | Initial system prompt |
-| `model_name` | str | "gemini-1.5-flash" | Gemini model ("gemini-1.5-pro", "gemini-1.5-flash") |
+| `model_name` | str | "gemini-2.5-pro" | Gemini model ("gemini-2.5-pro", "gemini-2.5-flash") |
 | `temperature` | float | 0.7 | Sampling temperature (0-1) |
-| `max_output_tokens` | int | 2048 | Maximum response tokens |
+| `max_output_tokens` | int | 8192 | Maximum response tokens |
 | `enable_tools` | bool | True | Enable tool calling |
 | `auto_execute_tools` | bool | True | Auto-execute tool calls |
 | `memory_limit` | int | None | Max messages in history |

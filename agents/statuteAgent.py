@@ -262,6 +262,7 @@ class StatuteAgent:
             name="StatuteExtractor",
             system_prompt="You are a legal information extractor. Extract structured legal information from text and return it as JSON.",
             temperature=0.1,
+            max_output_tokens=8192,  # Increased for complete responses
             enable_tools=False,
             response_format='json'  # Enable JSON output mode
         )

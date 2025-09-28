@@ -177,7 +177,8 @@ class ProsecutorAgent(BaseAgent):
         
         Return only valid JSON, no additional text."""
         
-        response = self.chat(prompt)
+        # Use generate_with_completion for automatic truncation handling
+        response = self.generate_with_completion(prompt)
         
         # Parse JSON response into structured format
         argument = self._parse_json_argument(response, ArgumentType.OPENING)
@@ -220,7 +221,8 @@ class ProsecutorAgent(BaseAgent):
         
         Return only valid JSON, no additional text."""
         
-        response = self.chat(prompt)
+        # Use generate_with_completion for automatic truncation handling
+        response = self.generate_with_completion(prompt)
         
         argument = self._parse_json_argument(response, ArgumentType.REBUTTAL)
         return argument
@@ -257,38 +259,46 @@ class ProsecutorAgent(BaseAgent):
         return summary
     
     def _parse_json_argument(self, response: str, arg_type: ArgumentType) -> LegalArgument:
-        """Parse JSON AI response into structured argument."""
-        import json
-        
+        """Parse JSON AI response into structured argument using enhanced JSON repair."""
+        # Use BaseAgent's repair_json method for robust parsing
         try:
-            # Clean response if needed (remove markdown code blocks)
-            if '```json' in response:
-                response = response.split('```json')[1].split('```')[0]
-            elif '```' in response:
-                response = response.split('```')[1].split('```')[0]
-            
-            data = json.loads(response.strip())
+            data = self.repair_json(response)
             
             return LegalArgument(
                 agent_name=self.name,
                 argument_type=arg_type,
-                main_argument=data.get('main_argument', '')[:500],
+                main_argument=data.get('main_argument', ''),
                 cited_statutes=data.get('cited_statutes', []),
                 cited_precedents=data.get('cited_precedents', []),
-                key_points=data.get('key_points', [])[:5],
-                conclusion=data.get('conclusion', '')[:200]
+                key_points=data.get('key_points', [])[:5],  # Keep reasonable limit on key points
+                conclusion=data.get('conclusion', '')
             )
             
-        except (json.JSONDecodeError, Exception) as e:
-            # Fallback to basic parsing if JSON fails
-            print(f"Warning: Failed to parse argument JSON: {e}")
+        except Exception as e:
+            # Fallback to basic parsing if JSON repair fails
+            print(f"Warning: Failed to parse argument JSON even with repair: {e}")
+            
+            # Try to extract partial data
+            partial_data = self.extract_partial_json(response)
+            if partial_data:
+                return LegalArgument(
+                    agent_name=self.name,
+                    argument_type=arg_type,
+                    main_argument=partial_data.get('main_argument', response),
+                    cited_statutes=partial_data.get('cited_statutes', []),
+                    cited_precedents=partial_data.get('cited_precedents', []),
+                    key_points=partial_data.get('key_points', [response])[:5],
+                    conclusion=partial_data.get('conclusion', '')
+                )
+            
+            # Last resort: use raw response
             return LegalArgument(
                 agent_name=self.name,
                 argument_type=arg_type,
-                main_argument=response[:500] if len(response) > 500 else response,
+                main_argument=response,
                 cited_statutes=[],
                 cited_precedents=[],
-                key_points=[response[:100]],
+                key_points=[response],
                 conclusion=""
             )
     
@@ -312,11 +322,11 @@ class ProsecutorAgent(BaseAgent):
         return LegalArgument(
             agent_name=self.name,
             argument_type=arg_type,
-            main_argument=response[:500] if len(response) > 500 else response,
+            main_argument=response,
             cited_statutes=cited_statutes,
             cited_precedents=cited_precedents,
-            key_points=key_points if key_points else [response[:100]],
-            conclusion=conclusion[:200]
+            key_points=key_points if key_points else [response],
+            conclusion=conclusion
         )
 
 
@@ -400,7 +410,8 @@ class DefenseAgent(BaseAgent):
         
         Return only valid JSON, no additional text."""
         
-        response = self.chat(prompt)
+        # Use generate_with_completion for automatic truncation handling
+        response = self.generate_with_completion(prompt)
         return self._parse_json_argument(response, ArgumentType.OPENING)
     
     def make_rebuttal(self,
@@ -431,7 +442,8 @@ class DefenseAgent(BaseAgent):
         Keep the rebuttal focused and strategic.
         Return only valid JSON, no additional text."""
         
-        response = self.chat(prompt)
+        # Use generate_with_completion for automatic truncation handling
+        response = self.generate_with_completion(prompt)
         return self._parse_json_argument(response, ArgumentType.REBUTTAL)
     
     def _prepare_defense_perspective(self, evidence: CaseEvidence) -> str:
@@ -456,7 +468,7 @@ class DefenseAgent(BaseAgent):
         # Focus on precedents that might help defense
         for precedent in evidence.precedents:
             if 'dismiss' in precedent.holding.lower() or 'fail' in precedent.holding.lower():
-                summary += f"\n- {precedent.case_name}: {precedent.holding[:100]}"
+                summary += f"\n- {precedent.case_name}: {precedent.holding}"
         
         if evidence.defendant_claims:
             summary += f"\n\nDEFENDANT'S POSITION:\n" + "\n".join(f"- {claim}" for claim in evidence.defendant_claims)
@@ -467,38 +479,46 @@ class DefenseAgent(BaseAgent):
         return summary
     
     def _parse_json_argument(self, response: str, arg_type: ArgumentType) -> LegalArgument:
-        """Parse JSON AI response into structured argument."""
-        import json
-        
+        """Parse JSON AI response into structured argument using enhanced JSON repair."""
+        # Use BaseAgent's repair_json method for robust parsing
         try:
-            # Clean response if needed (remove markdown code blocks)
-            if '```json' in response:
-                response = response.split('```json')[1].split('```')[0]
-            elif '```' in response:
-                response = response.split('```')[1].split('```')[0]
-            
-            data = json.loads(response.strip())
+            data = self.repair_json(response)
             
             return LegalArgument(
                 agent_name=self.name,
                 argument_type=arg_type,
-                main_argument=data.get('main_argument', '')[:500],
+                main_argument=data.get('main_argument', ''),
                 cited_statutes=data.get('cited_statutes', []),
                 cited_precedents=data.get('cited_precedents', []),
-                key_points=data.get('key_points', [])[:5],
-                conclusion=data.get('conclusion', '')[:200]
+                key_points=data.get('key_points', [])[:5],  # Keep reasonable limit on key points
+                conclusion=data.get('conclusion', '')
             )
             
-        except (json.JSONDecodeError, Exception) as e:
-            # Fallback to basic parsing if JSON fails
-            print(f"Warning: Failed to parse defense argument JSON: {e}")
+        except Exception as e:
+            # Fallback to basic parsing if JSON repair fails
+            print(f"Warning: Failed to parse defense argument JSON even with repair: {e}")
+            
+            # Try to extract partial data
+            partial_data = self.extract_partial_json(response)
+            if partial_data:
+                return LegalArgument(
+                    agent_name=self.name,
+                    argument_type=arg_type,
+                    main_argument=partial_data.get('main_argument', response),
+                    cited_statutes=partial_data.get('cited_statutes', []),
+                    cited_precedents=partial_data.get('cited_precedents', []),
+                    key_points=partial_data.get('key_points', [response])[:5],
+                    conclusion=partial_data.get('conclusion', '')
+                )
+            
+            # Last resort: use raw response
             return LegalArgument(
                 agent_name=self.name,
                 argument_type=arg_type,
-                main_argument=response[:500] if len(response) > 500 else response,
+                main_argument=response,
                 cited_statutes=[],
                 cited_precedents=[],
-                key_points=[response[:100]],
+                key_points=[response],
                 conclusion=""
             )
     
@@ -519,11 +539,11 @@ class DefenseAgent(BaseAgent):
         return LegalArgument(
             agent_name=self.name,
             argument_type=arg_type,
-            main_argument=response[:500] if len(response) > 500 else response,
+            main_argument=response,
             cited_statutes=cited_statutes,
             cited_precedents=cited_precedents,
-            key_points=key_points if key_points else [response[:100]],
-            conclusion=conclusion[:200]
+            key_points=key_points if key_points else [response],
+            conclusion=conclusion
         )
 
 
@@ -622,7 +642,8 @@ class JudgeAgent(BaseAgent):
         Be decisive but explain your reasoning clearly.
         Return only valid JSON, no additional text."""
         
-        response = self.chat(prompt)
+        # Use generate_with_completion for automatic truncation handling
+        response = self.generate_with_completion(prompt)
         
         # Parse verdict
         verdict = self._parse_verdict(response)
@@ -670,7 +691,7 @@ class JudgeAgent(BaseAgent):
         if evidence.precedents:
             summary += "\n\nKEY PRECEDENTS:"
             for precedent in evidence.precedents[:2]:
-                summary += f"\n- {precedent.case_name} ({precedent.year}): {precedent.holding[:100]}"
+                summary += f"\n- {precedent.case_name} ({precedent.year}): {precedent.holding}"
         
         return summary
     
@@ -726,7 +747,7 @@ class JudgeAgent(BaseAgent):
             return Verdict(
                 outcome=outcome,
                 winner=winner,
-                rationale=response[:500] if len(response) > 500 else response,
+                rationale=response,
                 key_factors=["Evidence evaluation", "Legal analysis"],
                 cited_authorities=[],
                 confidence_score=0.5
@@ -831,7 +852,8 @@ class ResearchAgent(BaseAgent):
 
 """
         
-        response = self.chat(prompt)
+        # Use generate_with_completion for automatic truncation handling
+        response = self.generate_with_completion(prompt)
         
         # Parse JSON response
         try:
@@ -1033,13 +1055,13 @@ class LegalSimulation:
         print(f"\n[Prosecutor's Opening]")
         prosecutor_opening = self.prosecutor.make_opening_argument(self.case_evidence)
         self.arguments['prosecutor'].append(prosecutor_opening)
-        print(f"Main argument: {prosecutor_opening.main_argument[:200]}...")
+        print(f"Main argument: {prosecutor_opening.main_argument}...")
         print(f"Cited: {len(prosecutor_opening.cited_statutes)} statutes, {len(prosecutor_opening.cited_precedents)} cases")
         
         print(f"\n[Defense Opening]")
         defense_opening = self.defense.make_opening_argument(self.case_evidence)
         self.arguments['defense'].append(defense_opening)
-        print(f"Main argument: {defense_opening.main_argument[:200]}...")
+        print(f"Main argument: {defense_opening.main_argument}...")
         print(f"Key points: {len(defense_opening.key_points)}")
         
         # Phase 2: Rebuttals (optional)
@@ -1048,12 +1070,12 @@ class LegalSimulation:
             print(f"\n[Prosecutor's Rebuttal]")
             prosecutor_rebuttal = self.prosecutor.make_rebuttal(defense_opening, self.case_evidence)
             self.arguments['prosecutor'].append(prosecutor_rebuttal)
-            print(f"Rebuttal: {prosecutor_rebuttal.main_argument[:200]}...")
+            print(f"Rebuttal: {prosecutor_rebuttal.main_argument}...")
             
             print(f"\n[Defense Rebuttal]")
             defense_rebuttal = self.defense.make_rebuttal(prosecutor_opening, self.case_evidence)
             self.arguments['defense'].append(defense_rebuttal)
-            print(f"Rebuttal: {defense_rebuttal.main_argument[:200]}...")
+            print(f"Rebuttal: {defense_rebuttal.main_argument}...")
         
         # Phase 3: Judge's Verdict
         print(f"\n--- JUDGE'S VERDICT ---")

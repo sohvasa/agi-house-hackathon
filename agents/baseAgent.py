@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import asyncio
 from typing import List, Dict, Any, Optional, Callable, Union
 from datetime import datetime
@@ -88,9 +89,9 @@ class BaseAgent:
         self,
         name: str,
         system_prompt: str = "",
-        model_name: str = "gemini-2.5-flash",
+        model_name: str = "gemini-2.5-pro",  # Updated to 2.5 Pro for better performance
         temperature: float = 0.7,
-        max_output_tokens: int = 2048,
+        max_output_tokens: int = 8192,  # Increased from 2048 to prevent truncation
         enable_tools: bool = True,
         auto_execute_tools: bool = True,
         memory_limit: Optional[int] = None,
@@ -622,6 +623,155 @@ Please provide a comprehensive response to the user's query: {message}"""
             return "\n".join(output)
         else:
             raise ValueError(f"Invalid format: {format}. Use 'list', 'dict', or 'text'")
+    
+    def repair_json(self, text: str) -> Dict[str, Any]:
+        """
+        Attempt to repair and parse potentially incomplete or malformed JSON.
+        
+        Args:
+            text: Potentially malformed JSON string
+            
+        Returns:
+            Parsed JSON as dictionary
+        """
+        # Remove markdown wrappers if present
+        if '```json' in text:
+            text = text.split('```json')[1].split('```')[0]
+        elif '```' in text:
+            text = text.split('```')[1].split('```')[0]
+        
+        # Trim whitespace
+        text = text.strip()
+        
+        # Try standard parsing first
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+        
+        # Attempt to fix common issues
+        original_text = text
+        
+        # Fix incomplete strings (add closing quote if missing)
+        if text.count('"') % 2 != 0:
+            text += '"'
+        
+        # Balance brackets
+        open_braces = text.count('{')
+        close_braces = text.count('}')
+        if open_braces > close_braces:
+            text += '}' * (open_braces - close_braces)
+        
+        open_brackets = text.count('[')
+        close_brackets = text.count(']')
+        if open_brackets > close_brackets:
+            text += ']' * (open_brackets - close_brackets)
+        
+        # Try parsing the repaired JSON
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+        
+        # If still failing, try to extract partial JSON
+        return self.extract_partial_json(original_text)
+    
+    def extract_partial_json(self, text: str) -> Dict[str, Any]:
+        """
+        Extract as much valid JSON data as possible from incomplete text.
+        
+        Args:
+            text: Text containing partial JSON
+            
+        Returns:
+            Dictionary with extracted data
+        """
+        result = {}
+        
+        # Extract key-value pairs using regex
+        # Pattern for "key": "value" pairs
+        string_pattern = r'"([^"]+)"\s*:\s*"([^"]*)'
+        matches = re.findall(string_pattern, text)
+        for key, value in matches:
+            result[key] = value
+        
+        # Pattern for "key": [...] arrays (even if incomplete)
+        array_pattern = r'"([^"]+)"\s*:\s*\[(.*?)\]'
+        matches = re.findall(array_pattern, text)
+        for key, array_content in matches:
+            # Try to parse array items
+            items = []
+            item_pattern = r'"([^"]+)"'
+            item_matches = re.findall(item_pattern, array_content)
+            items.extend(item_matches)
+            result[key] = items
+        
+        return result
+    
+    def validate_json_response(self, response: str) -> bool:
+        """
+        Check if a response appears to be complete JSON.
+        
+        Args:
+            response: Response text to validate
+            
+        Returns:
+            True if response appears complete, False otherwise
+        """
+        response = response.strip()
+        
+        # Check for obvious truncation signs
+        if response.endswith('...'):
+            return False
+        
+        # Check for balanced brackets/braces
+        if response.count('{') != response.count('}'):
+            return False
+        if response.count('[') != response.count(']'):
+            return False
+        
+        # Check if it ends with a valid JSON terminator
+        valid_endings = ['}', ']', '"', 'true', 'false', 'null'] or response[-1].isdigit()
+        if not any(response.endswith(end) for end in valid_endings):
+            return False
+        
+        # Try to parse it
+        try:
+            json.loads(response)
+            return True
+        except:
+            return False
+    
+    def generate_with_completion(self, prompt: str, max_attempts: int = 3) -> str:
+        """
+        Generate a response with automatic completion if truncated.
+        
+        Args:
+            prompt: The prompt to send
+            max_attempts: Maximum number of continuation attempts
+            
+        Returns:
+            Complete response text
+        """
+        response = self.chat(prompt)
+        attempt = 1
+        
+        # If JSON mode is enabled, check for completeness
+        if self.response_format == 'json':
+            while not self.validate_json_response(response) and attempt < max_attempts:
+                # Request continuation
+                continuation_prompt = f"Continue the JSON response from where it was cut off. Last part was:\n{response[-200:]}"
+                continuation = self.chat(continuation_prompt)
+                
+                # Remove any repeated content at the junction
+                overlap_size = 50
+                if len(response) > overlap_size and continuation.startswith(response[-overlap_size:]):
+                    continuation = continuation[overlap_size:]
+                
+                response += continuation
+                attempt += 1
+        
+        return response
     
     def save_history(self, filepath: str):
         """
