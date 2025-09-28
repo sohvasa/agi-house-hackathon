@@ -159,19 +159,28 @@ class ProsecutorAgent(BaseAgent):
 
         {evidence_summary}
 
-        Your opening argument should:
-        1. State the plaintiff's core claims
-        2. Cite relevant statutes (DTSA/UTSA provisions)
-        3. Reference supportive precedents
-        4. Highlight key evidence
-        5. Preview the remedies sought
-
-        Format your response as a structured argument."""
+        Generate your opening argument in the following JSON format:
+        {{
+            "main_argument": "Your primary argument (max 500 characters)",
+            "key_points": ["point 1", "point 2", "point 3", "point 4", "point 5"],
+            "cited_statutes": ["DTSA § 1836", "UTSA § 1", ...],
+            "cited_precedents": ["Case1 v. Case2", ...],
+            "conclusion": "Your concluding statement (max 200 characters)"
+        }}
+        
+        Requirements:
+        1. State the plaintiff's core claims in main_argument
+        2. Include relevant DTSA/UTSA provisions in cited_statutes
+        3. Reference supportive case precedents in cited_precedents
+        4. Highlight key evidence in key_points
+        5. Preview remedies sought in conclusion
+        
+        Return only valid JSON, no additional text."""
         
         response = self.chat(prompt)
         
-        # Parse response into structured format
-        argument = self._parse_argument(response, ArgumentType.OPENING)
+        # Parse JSON response into structured format
+        argument = self._parse_json_argument(response, ArgumentType.OPENING)
         return argument
     
     def make_rebuttal(self, 
@@ -193,18 +202,27 @@ class ProsecutorAgent(BaseAgent):
         Key points raised:
         {', '.join(defense_argument.key_points)}
 
-        Based on the case evidence, provide a strong rebuttal that:
-        1. Directly addresses each defense claim
-        2. Reinforces statutory violations
-        3. Distinguishes any unfavorable precedents cited
-        4. Emphasizes evidence supporting misappropriation
-        5. Maintains focus on legal standards
-
-        Keep the rebuttal concise and targeted."""
+        Generate your rebuttal in the following JSON format:
+        {{
+            "main_argument": "Your primary rebuttal argument (max 500 characters)",
+            "key_points": ["rebuttal point 1", "rebuttal point 2", ...],
+            "cited_statutes": ["DTSA § 1836", "UTSA § 1", ...],
+            "cited_precedents": ["Case1 v. Case2", ...],
+            "conclusion": "Your concluding rebuttal statement (max 200 characters)"
+        }}
+        
+        Requirements:
+        1. Directly address each defense claim in main_argument
+        2. Reinforce statutory violations in cited_statutes
+        3. Distinguish unfavorable precedents in cited_precedents
+        4. Emphasize evidence supporting misappropriation in key_points
+        5. Maintain focus on legal standards in conclusion
+        
+        Return only valid JSON, no additional text."""
         
         response = self.chat(prompt)
         
-        argument = self._parse_argument(response, ArgumentType.REBUTTAL)
+        argument = self._parse_json_argument(response, ArgumentType.REBUTTAL)
         return argument
     
     def _prepare_evidence_summary(self, evidence: CaseEvidence) -> str:
@@ -238,8 +256,44 @@ class ProsecutorAgent(BaseAgent):
         
         return summary
     
+    def _parse_json_argument(self, response: str, arg_type: ArgumentType) -> LegalArgument:
+        """Parse JSON AI response into structured argument."""
+        import json
+        
+        try:
+            # Clean response if needed (remove markdown code blocks)
+            if '```json' in response:
+                response = response.split('```json')[1].split('```')[0]
+            elif '```' in response:
+                response = response.split('```')[1].split('```')[0]
+            
+            data = json.loads(response.strip())
+            
+            return LegalArgument(
+                agent_name=self.name,
+                argument_type=arg_type,
+                main_argument=data.get('main_argument', '')[:500],
+                cited_statutes=data.get('cited_statutes', []),
+                cited_precedents=data.get('cited_precedents', []),
+                key_points=data.get('key_points', [])[:5],
+                conclusion=data.get('conclusion', '')[:200]
+            )
+            
+        except (json.JSONDecodeError, Exception) as e:
+            # Fallback to basic parsing if JSON fails
+            print(f"Warning: Failed to parse argument JSON: {e}")
+            return LegalArgument(
+                agent_name=self.name,
+                argument_type=arg_type,
+                main_argument=response[:500] if len(response) > 500 else response,
+                cited_statutes=[],
+                cited_precedents=[],
+                key_points=[response[:100]],
+                conclusion=""
+            )
+    
     def _parse_argument(self, response: str, arg_type: ArgumentType) -> LegalArgument:
-        """Parse AI response into structured argument."""
+        """Legacy regex-based parsing - deprecated, use _parse_json_argument instead."""
         # Extract citations using regex
         statute_pattern = r'(?:DTSA|UTSA|USC|U\.S\.C\.|CFR)[^,;.]*'
         case_pattern = r'(?:[A-Z][a-z]+ v\. [A-Z][a-z]+)[^,;.]*'
@@ -328,17 +382,26 @@ class DefenseAgent(BaseAgent):
 
         {evidence_summary}
 
-        Your defense should:
-        1. Challenge the plaintiff's ability to prove all elements
-        2. Highlight weaknesses (no NDA, weak evidence, etc.)
-        3. Cite precedents where similar claims failed
+        Generate your defense argument in the following JSON format:
+        {{
+            "main_argument": "Your primary defense argument (max 500 characters)",
+            "key_points": ["defense point 1", "defense point 2", ...],
+            "cited_statutes": ["DTSA § 1836 requirements not met", ...],
+            "cited_precedents": ["Case1 v. Case2 (dismissal)", ...],
+            "conclusion": "Your concluding defense statement (max 200 characters)"
+        }}
+        
+        Requirements:
+        1. Challenge the plaintiff's ability to prove all elements in main_argument
+        2. Highlight weaknesses (no NDA, weak evidence, etc.) in key_points
+        3. Cite precedents where similar claims failed in cited_precedents
         4. Question if information truly qualifies as trade secrets
-        5. Provide alternative explanations
-
-        Format as a structured legal argument."""
+        5. Provide alternative explanations in key_points
+        
+        Return only valid JSON, no additional text."""
         
         response = self.chat(prompt)
-        return self._parse_argument(response, ArgumentType.OPENING)
+        return self._parse_json_argument(response, ArgumentType.OPENING)
     
     def make_rebuttal(self,
                      prosecutor_argument: LegalArgument,
@@ -356,10 +419,20 @@ class DefenseAgent(BaseAgent):
         4. Reinforces reasonable doubt
         5. Emphasizes defense's strongest points
 
-        Keep it concise and focused."""
+        Generate your rebuttal in the following JSON format:
+        {{
+            "main_argument": "Your primary defense rebuttal (max 500 characters)",
+            "key_points": ["rebuttal point 1", "rebuttal point 2", ...],
+            "cited_statutes": ["DTSA § 1836 elements not proven", ...],
+            "cited_precedents": ["Distinguishable: Case1 v. Case2", ...],
+            "conclusion": "Your concluding rebuttal (max 200 characters)"
+        }}
+        
+        Keep the rebuttal focused and strategic.
+        Return only valid JSON, no additional text."""
         
         response = self.chat(prompt)
-        return self._parse_argument(response, ArgumentType.REBUTTAL)
+        return self._parse_json_argument(response, ArgumentType.REBUTTAL)
     
     def _prepare_defense_perspective(self, evidence: CaseEvidence) -> str:
         """Prepare evidence summary from defense perspective."""
@@ -393,8 +466,44 @@ class DefenseAgent(BaseAgent):
         
         return summary
     
+    def _parse_json_argument(self, response: str, arg_type: ArgumentType) -> LegalArgument:
+        """Parse JSON AI response into structured argument."""
+        import json
+        
+        try:
+            # Clean response if needed (remove markdown code blocks)
+            if '```json' in response:
+                response = response.split('```json')[1].split('```')[0]
+            elif '```' in response:
+                response = response.split('```')[1].split('```')[0]
+            
+            data = json.loads(response.strip())
+            
+            return LegalArgument(
+                agent_name=self.name,
+                argument_type=arg_type,
+                main_argument=data.get('main_argument', '')[:500],
+                cited_statutes=data.get('cited_statutes', []),
+                cited_precedents=data.get('cited_precedents', []),
+                key_points=data.get('key_points', [])[:5],
+                conclusion=data.get('conclusion', '')[:200]
+            )
+            
+        except (json.JSONDecodeError, Exception) as e:
+            # Fallback to basic parsing if JSON fails
+            print(f"Warning: Failed to parse defense argument JSON: {e}")
+            return LegalArgument(
+                agent_name=self.name,
+                argument_type=arg_type,
+                main_argument=response[:500] if len(response) > 500 else response,
+                cited_statutes=[],
+                cited_precedents=[],
+                key_points=[response[:100]],
+                conclusion=""
+            )
+    
     def _parse_argument(self, response: str, arg_type: ArgumentType) -> LegalArgument:
-        """Parse AI response into structured argument."""
+        """Legacy regex-based parsing - deprecated, use _parse_json_argument instead."""
         statute_pattern = r'(?:DTSA|UTSA|USC|U\.S\.C\.|CFR)[^,;.]*'
         case_pattern = r'(?:[A-Z][a-z]+ v\. [A-Z][a-z]+)[^,;.]*'
         
@@ -501,14 +610,17 @@ class JudgeAgent(BaseAgent):
         4. What precedents control this case?
         5. Are the defense arguments persuasive?
 
-        Provide your verdict with:
-        - Winner (plaintiff or defendant)
-        - Key factors in your decision
-        - Relevant authorities you relied upon
-        - Confidence in decision (0-1 scale)
-        - Brief rationale (2-3 paragraphs)
+        Provide your verdict in the following JSON format:
+        {{
+            "winner": "plaintiff" or "defendant" or "settlement",
+            "key_factors": ["factor1", "factor2", ...],
+            "cited_authorities": ["DTSA § 1836", "Case1 v. Case2", ...],
+            "confidence_score": 0.0 to 1.0,
+            "rationale": "Your 2-3 paragraph reasoning for the decision"
+        }}
         
-        Be decisive but explain your reasoning clearly."""
+        Be decisive but explain your reasoning clearly.
+        Return only valid JSON, no additional text."""
         
         response = self.chat(prompt)
         
@@ -563,59 +675,62 @@ class JudgeAgent(BaseAgent):
         return summary
     
     def _parse_verdict(self, response: str) -> Verdict:
-        """Parse judge's response into verdict."""
-        # Determine winner
-        response_lower = response.lower()
-        if 'plaintiff win' in response_lower or 'plaintiff prevails' in response_lower or 'find for the plaintiff' in response_lower:
-            outcome = VerdictOutcome.PLAINTIFF_WIN
-            winner = "plaintiff"
-        elif 'defendant win' in response_lower or 'defendant prevails' in response_lower or 'find for the defendant' in response_lower:
-            outcome = VerdictOutcome.DEFENSE_WIN
-            winner = "defendant"
-        elif 'settlement' in response_lower or 'partial' in response_lower:
-            outcome = VerdictOutcome.SETTLEMENT
-            winner = "settlement"
-        else:
-            # Try to infer from context
-            plaintiff_indicators = response_lower.count('plaintiff') + response_lower.count('misappropriation proven')
-            defendant_indicators = response_lower.count('defendant') + response_lower.count('fail to prove') + response_lower.count('insufficient')
+        """Parse judge's JSON response into verdict."""
+        import json
+        
+        try:
+            # Clean response if needed (remove markdown code blocks)
+            if '```json' in response:
+                response = response.split('```json')[1].split('```')[0]
+            elif '```' in response:
+                response = response.split('```')[1].split('```')[0]
             
-            if plaintiff_indicators > defendant_indicators:
+            data = json.loads(response.strip())
+            
+            # Map winner to outcome
+            winner = data.get('winner', 'defendant').lower()
+            if winner == 'plaintiff':
+                outcome = VerdictOutcome.PLAINTIFF_WIN
+            elif winner == 'settlement':
+                outcome = VerdictOutcome.SETTLEMENT
+            else:
+                outcome = VerdictOutcome.DEFENSE_WIN
+                winner = 'defendant'
+            
+            return Verdict(
+                outcome=outcome,
+                winner=winner,
+                rationale=data.get('rationale', ''),
+                key_factors=data.get('key_factors', [])[:5],
+                cited_authorities=data.get('cited_authorities', [])[:5],
+                confidence_score=min(1.0, max(0.0, float(data.get('confidence_score', 0.7))))
+            )
+            
+        except (json.JSONDecodeError, Exception) as e:
+            # Fallback to basic parsing if JSON fails
+            print(f"Warning: Failed to parse verdict JSON: {e}")
+            
+            # Try basic text parsing as fallback
+            response_lower = response.lower()
+            
+            if 'plaintiff' in response_lower and 'win' in response_lower:
                 outcome = VerdictOutcome.PLAINTIFF_WIN
                 winner = "plaintiff"
+            elif 'settlement' in response_lower:
+                outcome = VerdictOutcome.SETTLEMENT
+                winner = "settlement"
             else:
                 outcome = VerdictOutcome.DEFENSE_WIN
                 winner = "defendant"
-        
-        # Extract confidence score
-        confidence_pattern = r'(?:confidence|certain).*?(\d+(?:\.\d+)?)'
-        confidence_match = re.search(confidence_pattern, response_lower)
-        confidence = float(confidence_match.group(1)) if confidence_match else 0.7
-        
-        # Normalize confidence to 0-1 range
-        if confidence > 1:
-            confidence = confidence / 100
-        
-        # Extract key factors
-        factor_pattern = r'(?:key factor|important|critical|decisive)[:\s]+([^.\n]+)'
-        key_factors = re.findall(factor_pattern, response, re.IGNORECASE)[:5]
-        
-        # Extract cited authorities
-        authority_pattern = r'(?:DTSA|UTSA|USC|U\.S\.C\.|CFR|[A-Z][a-z]+ v\. [A-Z][a-z]+)[^,;.]*'
-        cited_authorities = list(set(re.findall(authority_pattern, response)))[:5]
-        
-        # Extract rationale (first substantial paragraph)
-        paragraphs = [p.strip() for p in response.split('\n\n') if len(p.strip()) > 100]
-        rationale = paragraphs[0] if paragraphs else response[:500]
-        
-        return Verdict(
-            outcome=outcome,
-            winner=winner,
-            rationale=rationale,
-            key_factors=key_factors if key_factors else ["Evidence strength", "Legal precedent"],
-            cited_authorities=cited_authorities,
-            confidence_score=confidence
-        )
+            
+            return Verdict(
+                outcome=outcome,
+                winner=winner,
+                rationale=response[:500] if len(response) > 500 else response,
+                key_factors=["Evidence evaluation", "Legal analysis"],
+                cited_authorities=[],
+                confidence_score=0.5
+            )
 
 
 class ResearchAgent(BaseAgent):
@@ -642,6 +757,7 @@ class ResearchAgent(BaseAgent):
             system_prompt=system_prompt,
             temperature=0.3,
             enable_tools=False,
+            response_format='json',  # Enable JSON output for case analysis
             **kwargs
         )
         
@@ -695,53 +811,79 @@ class ResearchAgent(BaseAgent):
     
     def _analyze_case(self, case_description: str) -> Dict[str, Any]:
         """Analyze case to extract key information."""
+        import json
+        
         prompt = f"""Analyze this legal case and extract key information:
 
         {case_description}
 
-        Provide:
-        1. Main legal issues (list)
-        2. Key facts (list)
-        3. Whether NDA/confidentiality agreement exists (true/false)
-        4. Evidence strength (weak/moderate/strong)
-        5. Venue bias if mentioned (plaintiff-friendly/defendant-friendly/neutral)
-        6. Plaintiff's main claims (list)
-        7. Defendant's likely defenses (list)
-        8. Disputed facts (list)
+        Return your analysis in the following JSON format:
+        {{
+            "legal_issues": ["issue1", "issue2", ...],
+            "key_facts": ["fact1", "fact2", ...],
+            "has_nda": true/false,
+            "evidence_strength": "weak" or "moderate" or "strong",
+            "venue_bias": "plaintiff-friendly" or "defendant-friendly" or "neutral",
+            "plaintiff_claims": ["claim1", "claim2", ...],
+            "defendant_defenses": ["defense1", "defense2", ...],
+            "disputed_facts": ["fact1", "fact2", ...]
+        }}
 
-        Format as structured data."""
+"""
         
         response = self.chat(prompt)
         
-        # Parse response
-        analysis = {
-            'legal_issues': [],
-            'key_facts': [],
-            'has_nda': 'nda' in response.lower() or 'confidentiality' in response.lower(),
-            'evidence_strength': 'moderate',
-            'venue_bias': 'neutral',
-            'plaintiff_claims': [],
-            'defendant_claims': [],
-            'disputed_facts': []
-        }
-        
-        # Extract lists using patterns
-        issues_pattern = r'legal issue[s]?[:\s]+([^\n]+(?:\n[-•*]\s*[^\n]+)*)'
-        issues_match = re.search(issues_pattern, response, re.IGNORECASE)
-        if issues_match:
-            analysis['legal_issues'] = [item.strip('- •*\t ') for item in issues_match.group(1).split('\n') if item.strip()]
-        
-        # Extract evidence strength
-        if 'strong' in response.lower():
-            analysis['evidence_strength'] = 'strong'
-        elif 'weak' in response.lower():
-            analysis['evidence_strength'] = 'weak'
-        
-        # Extract other fields similarly
-        facts_pattern = r'key fact[s]?[:\s]+([^\n]+(?:\n[-•*]\s*[^\n]+)*)'
-        facts_match = re.search(facts_pattern, response, re.IGNORECASE)
-        if facts_match:
-            analysis['key_facts'] = [item.strip('- •*\t ') for item in facts_match.group(1).split('\n') if item.strip()][:5]
+        # Parse JSON response
+        try:
+            # When response_format='json', Gemini returns raw JSON
+            if isinstance(response, str):
+                # Try to parse as-is first
+                try:
+                    analysis = json.loads(response.strip())
+                except json.JSONDecodeError:
+                    # Fallback: clean markdown if present
+                    if '```json' in response:
+                        response = response.split('```json')[1].split('```')[0]
+                    elif '```' in response:
+                        response = response.split('```')[1].split('```')[0]
+                    analysis = json.loads(response.strip())
+            else:
+                analysis = response  # Already parsed
+            
+            # Ensure all required fields exist with defaults
+            defaults = {
+                'legal_issues': [],
+                'key_facts': [],
+                'has_nda': False,
+                'evidence_strength': 'moderate',
+                'venue_bias': 'neutral',
+                'plaintiff_claims': [],
+                'defendant_defenses': [],
+                'disputed_facts': []
+            }
+            
+            # Merge with defaults to handle missing fields
+            for key, default_value in defaults.items():
+                if key not in analysis:
+                    analysis[key] = default_value
+                    
+            # Handle legacy field name
+            if 'defendant_defenses' in analysis:
+                analysis['defendant_claims'] = analysis.get('defendant_defenses', [])
+                    
+        except (json.JSONDecodeError, Exception) as e:
+            # Fallback to defaults if parsing fails
+            print(f"Warning: Failed to parse case analysis JSON: {e}")
+            analysis = {
+                'legal_issues': [],
+                'key_facts': [],
+                'has_nda': False,
+                'evidence_strength': 'moderate',
+                'venue_bias': 'neutral',
+                'plaintiff_claims': [],
+                'defendant_claims': [],
+                'disputed_facts': []
+            }
         
         return analysis
     

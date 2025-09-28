@@ -200,11 +200,12 @@ class StatuteAgent:
                                 citations: List[Any],
                                 detailed: bool = False) -> StatuteInfo:
         """
-        Parse Perplexity response into structured StatuteInfo.
+        Parse Perplexity response into structured StatuteInfo using LLM-based extraction.
         
         Args:
             response_text: The text response from Perplexity
             citations: List of citation sources (URLs as strings)
+            detailed: Whether to extract additional detailed information
             
         Returns:
             Structured StatuteInfo object
@@ -213,9 +214,153 @@ class StatuteAgent:
         if not response_text:
             response_text = ""
         
-        # Extract citation (e.g., "18 U.S.C. § 1836")
+        # Use LLM to extract structured information
+        extracted_info = self._extract_statute_info_with_llm(response_text, detailed)
+        
+        # Create concise snippet
+        snippet = self._create_snippet(
+            extracted_info.get('title', 'Unknown Statute'),
+            extracted_info.get('citation', 'Citation not found'),
+            extracted_info.get('definitions', {}),
+            extracted_info.get('remedies', [])
+        )
+        
+        # Get source URL if available
+        source_url = citations[0] if citations and len(citations) > 0 else None
+        
+        return StatuteInfo(
+            title=extracted_info.get('title', 'Unknown Statute'),
+            citation=extracted_info.get('citation', 'Citation not found'),
+            definitions=extracted_info.get('definitions', {}),
+            key_provisions=extracted_info.get('key_provisions', []),
+            remedies=extracted_info.get('remedies', []),
+            snippet=snippet,
+            full_text=extracted_info.get('full_text', None) if detailed else None,
+            sections=extracted_info.get('sections', None) if detailed else None,
+            legislative_history=extracted_info.get('legislative_history', None) if detailed else None,
+            interpretive_notes=extracted_info.get('interpretive_notes', None) if detailed else None,
+            source_url=source_url,
+            last_updated=datetime.now().isoformat()
+        )
+    
+    def _extract_statute_info_with_llm(self, text: str, detailed: bool = False) -> Dict[str, Any]:
+        """
+        Use an LLM to extract structured statute information from text.
+        
+        Args:
+            text: The text to extract information from
+            detailed: Whether to extract additional detailed fields
+            
+        Returns:
+            Dictionary with extracted information
+        """
+        # Initialize a simple LLM client (using the existing base agent infrastructure)
+        from agents.baseAgent import BaseAgent
+        import json
+        
+        extractor = BaseAgent(
+            name="StatuteExtractor",
+            system_prompt="You are a legal information extractor. Extract structured legal information from text and return it as JSON.",
+            temperature=0.1,
+            enable_tools=False,
+            response_format='json'  # Enable JSON output mode
+        )
+        
+        # Prepare the extraction prompt
+        if detailed:
+            prompt = f"""Extract the following information from this legal text:
+
+{text}
+
+Return a JSON object with these fields:
+{{
+    "title": "Full name of the Act or statute",
+    "citation": "Legal citation (e.g., '18 U.S.C. § 1836')",
+    "definitions": {{
+        "term1": "definition1",
+        "term2": "definition2"
+    }},
+    "key_provisions": ["provision1", "provision2", ...],
+    "remedies": ["remedy1", "remedy2", ...],
+    "full_text": "Complete statutory text if available",
+    "sections": {{
+        "Section 1": "text of section 1",
+        "Section 2": "text of section 2"
+    }},
+    "legislative_history": "Legislative background and amendments",
+    "interpretive_notes": "Judicial interpretations and notes"
+}}
+
+Extract as much information as available. Use null for fields with no information."""
+        else:
+            prompt = f"""Extract the following information from this legal text:
+
+{text}
+
+Return a JSON object with these fields:
+{{
+    "title": "Full name of the Act or statute",
+    "citation": "Legal citation (e.g., '18 U.S.C. § 1836')",
+    "definitions": {{
+        "term1": "definition1",
+        "term2": "definition2"
+    }},
+    "key_provisions": ["provision1", "provision2", ...],
+    "remedies": ["remedy1", "remedy2", ...]
+}}
+
+Extract as much information as available. Use empty objects/arrays for fields with no information."""
+        
+        # Get LLM response
+        response = extractor.chat(prompt)
+        
+        # Parse JSON response
+        try:
+            # When response_format='json', Gemini returns raw JSON
+            # No need to clean markdown code blocks
+            if isinstance(response, str):
+                # Try to parse as-is first (when using response_mime_type)
+                try:
+                    extracted = json.loads(response.strip())
+                except json.JSONDecodeError:
+                    # Fallback: clean markdown if present
+                    if '```json' in response:
+                        response = response.split('```json')[1].split('```')[0]
+                    elif '```' in response:
+                        response = response.split('```')[1].split('```')[0]
+                    extracted = json.loads(response.strip())
+            else:
+                extracted = response  # Already parsed
+            
+            # Ensure all required fields exist
+            defaults = {
+                'title': 'Unknown Statute',
+                'citation': 'Citation not found',
+                'definitions': {},
+                'key_provisions': [],
+                'remedies': [],
+                'full_text': None,
+                'sections': None,
+                'legislative_history': None,
+                'interpretive_notes': None
+            }
+            
+            for key, default_value in defaults.items():
+                if key not in extracted:
+                    extracted[key] = default_value
+            
+            return extracted
+            
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"Warning: Failed to parse statute extraction JSON: {e}")
+            # Fallback to legacy regex-based extraction
+            return self._fallback_regex_extraction(text, detailed)
+    
+    def _fallback_regex_extraction(self, text: str, detailed: bool = False) -> Dict[str, Any]:
+        """Fallback to regex-based extraction if LLM fails."""
+        # Use the original regex-based methods
         citation_pattern = r'\b\d+\s+U\.?S\.?C\.?\s*§+\s*\d+[a-z]?|\b\d+\s+C\.?F\.?R\.?\s*§+\s*\d+\.?\d*'
-        citations_found = re.findall(citation_pattern, response_text, re.IGNORECASE)
+        citations_found = re.findall(citation_pattern, text, re.IGNORECASE)
         main_citation = citations_found[0] if citations_found else "Citation not found"
         
         # Extract title/name of the Act
@@ -227,52 +372,26 @@ class StatuteAgent:
         
         title = "Unknown Statute"
         for pattern in title_patterns:
-            match = re.search(pattern, response_text)
+            match = re.search(pattern, text)
             if match:
                 title = match.group(1).strip()
                 break
         
-        # Extract definitions
-        definitions = self._extract_definitions(response_text)
-        
-        # Extract key provisions
-        provisions = self._extract_provisions(response_text)
-        
-        # Extract remedies
-        remedies = self._extract_remedies(response_text)
-        
-        # Create concise snippet
-        snippet = self._create_snippet(title, main_citation, definitions, remedies)
-        
-        # Get source URL if available (citations are strings/URLs from Perplexity)
-        source_url = citations[0] if citations and len(citations) > 0 else None
-        
-        # Extract additional details if requested
-        full_text = None
-        sections = None
-        legislative_history = None
-        interpretive_notes = None
+        result = {
+            'title': title,
+            'citation': main_citation,
+            'definitions': self._extract_definitions(text),
+            'key_provisions': self._extract_provisions(text),
+            'remedies': self._extract_remedies(text)
+        }
         
         if detailed:
-            full_text = self._extract_full_text(response_text)
-            sections = self._extract_sections(response_text)
-            legislative_history = self._extract_legislative_history(response_text)
-            interpretive_notes = self._extract_interpretive_notes(response_text)
+            result['full_text'] = self._extract_full_text(text)
+            result['sections'] = self._extract_sections(text)
+            result['legislative_history'] = self._extract_legislative_history(text)
+            result['interpretive_notes'] = self._extract_interpretive_notes(text)
         
-        return StatuteInfo(
-            title=title,
-            citation=main_citation,
-            definitions=definitions,
-            key_provisions=provisions,
-            remedies=remedies,
-            snippet=snippet,
-            full_text=full_text,
-            sections=sections,
-            legislative_history=legislative_history,
-            interpretive_notes=interpretive_notes,
-            source_url=source_url,
-            last_updated=datetime.now().isoformat()
-        )
+        return result
     
     def _extract_definitions(self, text: str) -> Dict[str, str]:
         """Extract legal definitions from text."""

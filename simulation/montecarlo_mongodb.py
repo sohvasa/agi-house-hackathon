@@ -129,7 +129,8 @@ class MongoEnhancedMonteCarloSimulation(EnhancedMonteCarloSimulation):
             defense_strategy=result.variables.defense_strategy,
             judge_temperament=result.variables.judge_temperament
         )
-        enhanced_sim.case_evidence = self.evidence
+        # Use base_evidence from the parent class
+        enhanced_sim.case_evidence = self.base_evidence if hasattr(self, 'base_evidence') else None
         
         # Generate messages with proper timestamps
         start_time = datetime.now()
@@ -249,8 +250,8 @@ class MongoEnhancedMonteCarloSimulation(EnhancedMonteCarloSimulation):
                 judge_temperament=variables.judge_temperament
             )
             
-            # Set evidence
-            enhanced_sim.case_evidence = self.evidence
+            # Set evidence from parent class
+            enhanced_sim.case_evidence = self.base_evidence if hasattr(self, 'base_evidence') else None
             
             # Run extended trial with more exchanges
             messages, verdict = enhanced_sim.run_extended_trial(

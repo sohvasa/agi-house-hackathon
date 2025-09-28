@@ -93,7 +93,8 @@ class BaseAgent:
         max_output_tokens: int = 2048,
         enable_tools: bool = True,
         auto_execute_tools: bool = True,
-        memory_limit: Optional[int] = None
+        memory_limit: Optional[int] = None,
+        response_format: Optional[str] = None  # 'json' or None for text
     ):
         """
         Initialize the base agent.
@@ -129,12 +130,20 @@ class BaseAgent:
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
         }
         
+        # Configure generation settings
+        generation_config = {
+            "temperature": temperature,
+            "max_output_tokens": max_output_tokens,
+        }
+        
+        # Add JSON output configuration if requested
+        if response_format == 'json':
+            generation_config["response_mime_type"] = "application/json"
+        
+        self.response_format = response_format
         self.model = genai.GenerativeModel(
             model_name=model_name,
-            generation_config={
-                "temperature": temperature,
-                "max_output_tokens": max_output_tokens,
-            },
+            generation_config=generation_config,
             safety_settings=safety_settings
         )
         

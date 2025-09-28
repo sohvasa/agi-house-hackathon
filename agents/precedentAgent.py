@@ -216,8 +216,125 @@ class PrecedentAgent:
                           response_text: str,
                           citations: List[str],
                           num_cases: int) -> List[CasePrecedent]:
-        """Parse search results into structured case precedents."""
+        """Parse search results into structured case precedents using LLM-based extraction."""
         
+        # Use LLM to extract case information
+        extracted_cases = self._extract_cases_with_llm(response_text, num_cases)
+        
+        cases = []
+        for case_data in extracted_cases:
+            # Determine court level from court name
+            court_level = self._determine_court_level(case_data.get('court', ''))
+            
+            # Analyze relevance
+            relevance_p, relevance_d = self._analyze_relevance(
+                case_data.get('holding', ''),
+                case_data.get('rule', ''),
+                case_data.get('facts', '')
+            )
+            
+            # Create case precedent
+            case = CasePrecedent(
+                case_name=case_data.get('case_name', 'Unknown Case'),
+                year=case_data.get('year', 'Year unknown'),
+                citation=case_data.get('citation', 'Citation pending'),
+                court=case_data.get('court', 'Court not specified'),
+                court_level=court_level,
+                holding=case_data.get('holding', 'Holding not clearly stated'),
+                rule=case_data.get('rule', 'Legal principle to be determined'),
+                facts=case_data.get('facts'),
+                reasoning=case_data.get('reasoning'),
+                dissent=case_data.get('dissent'),
+                relevance_plaintiff=relevance_p,
+                relevance_defendant=relevance_d,
+                procedural_posture=case_data.get('procedural_posture'),
+                outcome=case_data.get('outcome'),
+                source_url=citations[0] if citations else None,
+                confidence_score=self._calculate_confidence(
+                    case_data.get('holding', ''),
+                    case_data.get('rule', ''),
+                    case_data.get('citation', '')
+                )
+            )
+            
+            cases.append(case)
+        
+        # If no cases extracted, try fallback
+        if not cases and response_text:
+            cases = self._fallback_regex_extraction(response_text, citations, num_cases)
+        
+        return cases
+    
+    def _extract_cases_with_llm(self, text: str, num_cases: int) -> List[Dict[str, Any]]:
+        """Use an LLM to extract case information from text."""
+        from agents.baseAgent import BaseAgent
+        import json
+        
+        extractor = BaseAgent(
+            name="CaseExtractor",
+            system_prompt="You are a legal case information extractor. Extract structured case law information from text and return it as JSON.",
+            temperature=0.1,
+            enable_tools=False,
+            response_format='json'  # Enable JSON output mode
+        )
+        
+        prompt = f"""Extract information about legal cases from this text. Find up to {num_cases} cases.
+
+{text}
+
+For EACH case found, return a JSON array with objects containing these fields:
+[
+    {{
+        "case_name": "Party1 v. Party2",
+        "year": "YYYY",
+        "citation": "Full legal citation (e.g., '123 F.3d 456')",
+        "court": "Name of the court (e.g., 'Ninth Circuit')",
+        "holding": "The court's holding/decision",
+        "rule": "Legal rule or principle established",
+        "facts": "Key facts of the case (optional)",
+        "reasoning": "Court's reasoning (optional)",
+        "outcome": "Case outcome (affirmed/reversed/remanded/etc.)",
+        "dissent": "Dissenting opinion if mentioned (optional)",
+        "procedural_posture": "How the case reached this court (optional)"
+    }},
+    ...
+]
+
+If no cases are found, return an empty array []."""
+        
+        response = extractor.chat(prompt)
+        
+        try:
+            # When response_format='json', Gemini returns raw JSON
+            # No need to clean markdown code blocks
+            if isinstance(response, str):
+                # Try to parse as-is first (when using response_mime_type)
+                try:
+                    extracted = json.loads(response.strip())
+                except json.JSONDecodeError:
+                    # Fallback: clean markdown if present
+                    if '```json' in response:
+                        response = response.split('```json')[1].split('```')[0]
+                    elif '```' in response:
+                        response = response.split('```')[1].split('```')[0]
+                    extracted = json.loads(response.strip())
+            else:
+                extracted = response  # Already parsed
+            
+            # Ensure it's a list
+            if isinstance(extracted, dict):
+                extracted = [extracted]
+            elif not isinstance(extracted, list):
+                extracted = []
+            
+            return extracted[:num_cases]
+            
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"Warning: Failed to parse case extraction JSON: {e}")
+            return []
+    
+    def _fallback_regex_extraction(self, response_text: str, citations: List[str], num_cases: int) -> List[CasePrecedent]:
+        """Fallback to regex-based extraction if LLM fails."""
         cases = []
         
         # Extract case citations (e.g., "Waymo v. Uber", "Smith v. Jones, 123 F.3d 456")
@@ -227,31 +344,16 @@ class PrecedentAgent:
         for case_name_raw, citation_raw in case_matches[:num_cases]:
             case_name = case_name_raw.strip().rstrip(',')
             
-            # Extract year from case name or citation
+            # Use original extraction methods
             year = self._extract_year(case_name, citation_raw, response_text)
-            
-            # Extract court information
             court, court_level = self._extract_court_info(citation_raw, response_text, case_name)
-            
-            # Extract holding
             holding = self._extract_holding(response_text, case_name)
-            
-            # Extract rule/principle
             rule = self._extract_rule(response_text, case_name)
-            
-            # Extract facts
             facts = self._extract_facts(response_text, case_name)
-            
-            # Extract reasoning
             reasoning = self._extract_reasoning(response_text, case_name)
-            
-            # Extract outcome
             outcome = self._extract_outcome(response_text, case_name)
-            
-            # Analyze relevance
             relevance_p, relevance_d = self._analyze_relevance(holding, rule, facts)
             
-            # Create case precedent
             case = CasePrecedent(
                 case_name=case_name,
                 year=year,

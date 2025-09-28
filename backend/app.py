@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import sys
+import random
 from datetime import datetime
 from typing import Dict, List, Optional
 from bson.objectid import ObjectId
@@ -223,14 +224,31 @@ def run_simulation():
         jurisdiction = data.get('jurisdiction', 'Federal')
         num_simulations = data.get('num_simulations', 1)
         
-        # Create simulation variables
+        # Helper function to randomize if "random" is selected
+        def get_random_or_value(value, options):
+            if value == 'random':
+                return random.choice(options)
+            return value
+        
+        # Define available options for randomization
+        strategies = ['aggressive', 'moderate', 'conservative']
+        temperaments = ['strict', 'balanced', 'lenient']
+        evidence_strengths = ['weak', 'moderate', 'strong']
+        venue_biases = ['plaintiff-friendly', 'neutral', 'defendant-friendly']
+        
+        # Create simulation variables with randomization support
+        # For has_nda, check if we should randomize it
+        has_nda = data.get('has_nda', True)
+        if isinstance(has_nda, str) and has_nda == 'random':
+            has_nda = random.choice([True, False])
+        
         variables = SimulationVariables(
-            prosecutor_strategy=data.get('prosecutor_strategy', 'moderate'),
-            defense_strategy=data.get('defense_strategy', 'moderate'),
-            judge_temperament=data.get('judge_temperament', 'balanced'),
-            has_nda=data.get('has_nda', True),
-            evidence_strength=data.get('evidence_strength', 'moderate'),
-            venue_bias=data.get('venue_bias', 'neutral')
+            prosecutor_strategy=get_random_or_value(data.get('prosecutor_strategy', 'moderate'), strategies),
+            defense_strategy=get_random_or_value(data.get('defense_strategy', 'moderate'), strategies),
+            judge_temperament=get_random_or_value(data.get('judge_temperament', 'balanced'), temperaments),
+            has_nda=has_nda,
+            evidence_strength=get_random_or_value(data.get('evidence_strength', 'moderate'), evidence_strengths),
+            venue_bias=get_random_or_value(data.get('venue_bias', 'neutral'), venue_biases)
         )
         
         # Create Monte Carlo simulation with MongoDB support
@@ -259,15 +277,39 @@ def run_simulation():
                 'monte_carlo_id': mc_sim.monte_carlo_id,
                 'winner': result.verdict.winner,
                 'confidence': result.verdict.confidence_score,
-                'execution_time': result.execution_time
+                'execution_time': result.execution_time,
+                'actual_variables': {
+                    'prosecutor_strategy': variables.prosecutor_strategy,
+                    'defense_strategy': variables.defense_strategy,
+                    'judge_temperament': variables.judge_temperament,
+                    'has_nda': variables.has_nda,
+                    'evidence_strength': variables.evidence_strength,
+                    'venue_bias': variables.venue_bias
+                }
             })
         else:
             # Multiple simulations (Monte Carlo)
+            # For Monte Carlo, if any values are "random", we'll let the Monte Carlo handle it
+            # by enabling randomization in the config
+            fixed_strategies = True
+            fixed_evidence = True
+            
+            # Check if any strategy is set to random
+            if (data.get('prosecutor_strategy') == 'random' or 
+                data.get('defense_strategy') == 'random' or 
+                data.get('judge_temperament') == 'random'):
+                fixed_strategies = False
+            
+            # Check if any evidence factor is set to random
+            if (data.get('evidence_strength') == 'random' or 
+                data.get('venue_bias') == 'random'):
+                fixed_evidence = False
+            
             analysis = mc_sim.run_simulations(
                 n_simulations=min(num_simulations, 10),  # Limit to 10 for API
                 randomization_config={
-                    'fixed_strategies': False,
-                    'fixed_evidence': False
+                    'fixed_strategies': fixed_strategies,
+                    'fixed_evidence': fixed_evidence
                 }
             )
             

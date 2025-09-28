@@ -8,17 +8,18 @@ function NewCase() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [actualVariables, setActualVariables] = useState(null);
   
   const [formData, setFormData] = useState({
     case_description: '',
     jurisdiction: 'Federal',
     num_simulations: 1,
-    prosecutor_strategy: 'moderate',
-    defense_strategy: 'moderate',
-    judge_temperament: 'balanced',
+    prosecutor_strategy: 'random',
+    defense_strategy: 'random',
+    judge_temperament: 'random',
     has_nda: true,
-    evidence_strength: 'moderate',
-    venue_bias: 'neutral'
+    evidence_strength: 'random',
+    venue_bias: 'random'
   });
 
   const handleChange = (e) => {
@@ -48,6 +49,11 @@ function NewCase() {
       
       setSuccess(true);
       
+      // Store actual variables if they were randomized
+      if (result.actual_variables) {
+        setActualVariables(result.actual_variables);
+      }
+      
       // Redirect to the simulation detail page after a short delay
       setTimeout(() => {
         if (result.simulation_id) {
@@ -55,7 +61,7 @@ function NewCase() {
         } else {
           navigate('/dashboard');
         }
-      }, 2000);
+      }, 3000); // Increased delay to show actual variables
       
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to run simulation');
@@ -80,7 +86,30 @@ function NewCase() {
 
       {success && (
         <div className="success-message">
-          Simulation started successfully! Redirecting...
+          <div>Simulation started successfully!</div>
+          {actualVariables && (
+            <div style={{ marginTop: '10px', fontSize: '0.9em' }}>
+              <strong>Using randomized values:</strong>
+              <ul style={{ marginTop: '5px', marginBottom: 0, paddingLeft: '20px', textAlign: 'left' }}>
+                {formData.prosecutor_strategy === 'random' && (
+                  <li>Prosecutor: {actualVariables.prosecutor_strategy}</li>
+                )}
+                {formData.defense_strategy === 'random' && (
+                  <li>Defense: {actualVariables.defense_strategy}</li>
+                )}
+                {formData.judge_temperament === 'random' && (
+                  <li>Judge: {actualVariables.judge_temperament}</li>
+                )}
+                {formData.evidence_strength === 'random' && (
+                  <li>Evidence: {actualVariables.evidence_strength}</li>
+                )}
+                {formData.venue_bias === 'random' && (
+                  <li>Venue: {actualVariables.venue_bias}</li>
+                )}
+              </ul>
+            </div>
+          )}
+          <div style={{ marginTop: '10px' }}>Redirecting...</div>
         </div>
       )}
 
@@ -160,6 +189,7 @@ function NewCase() {
                 value={formData.prosecutor_strategy}
                 onChange={handleChange}
               >
+                <option value="random">Random</option>
                 <option value="aggressive">Aggressive</option>
                 <option value="moderate">Moderate</option>
                 <option value="conservative">Conservative</option>
@@ -177,6 +207,7 @@ function NewCase() {
                 value={formData.defense_strategy}
                 onChange={handleChange}
               >
+                <option value="random">Random</option>
                 <option value="aggressive">Aggressive</option>
                 <option value="moderate">Moderate</option>
                 <option value="conservative">Conservative</option>
@@ -194,6 +225,7 @@ function NewCase() {
                 value={formData.judge_temperament}
                 onChange={handleChange}
               >
+                <option value="random">Random</option>
                 <option value="strict">Strict</option>
                 <option value="balanced">Balanced</option>
                 <option value="lenient">Lenient</option>
@@ -217,6 +249,7 @@ function NewCase() {
                 value={formData.evidence_strength}
                 onChange={handleChange}
               >
+                <option value="random">Random</option>
                 <option value="weak">Weak</option>
                 <option value="moderate">Moderate</option>
                 <option value="strong">Strong</option>
@@ -234,6 +267,7 @@ function NewCase() {
                 value={formData.venue_bias}
                 onChange={handleChange}
               >
+                <option value="random">Random</option>
                 <option value="plaintiff-friendly">Plaintiff-Friendly</option>
                 <option value="neutral">Neutral</option>
                 <option value="defendant-friendly">Defendant-Friendly</option>
