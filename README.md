@@ -1,6 +1,6 @@
-# AGI House Hackathon
+# Concord AI
 
-Multi-agent legal research system with Google Gemini integration.
+Concord AI is a multi-agent dispute simulator that transforms how legal and business conflicts are analyzed. Our browser agents conduct extensive legal research from online law databases, while our simulation agents act as prosecutor, defense, and judge and argue, negotiate, and deliberate cases in real time. Using Monte Carlo simulations to test alternative agent strategies, Concord AI delivers verdicts across dozens of outcomes. The result is decision support, risk forecasting, and a new way to stress-test disputes in minutes.
 
 ## Setup
 
