@@ -29,7 +29,6 @@ class ArgumentType(Enum):
     """Types of legal arguments"""
     OPENING = "opening"
     REBUTTAL = "rebuttal"
-    CLOSING = "closing"
 
 
 class VerdictOutcome(Enum):
@@ -1033,13 +1032,13 @@ class LegalSimulation:
         
         return self.case_evidence
     
-    def run_trial(self, include_rebuttals: bool = True) -> Verdict:
+    def run_trial(self) -> Verdict:
         """
-        Run the complete trial simulation.
+        Run the trial simulation with fixed structure:
+        1. Opening Arguments
+        2. Rebuttals
+        3. Judge's Verdict
         
-        Args:
-            include_rebuttals: Whether to include rebuttal phase
-            
         Returns:
             Judge's verdict
         """
@@ -1047,11 +1046,11 @@ class LegalSimulation:
             raise ValueError("Must prepare case first with prepare_case()")
         
         print(f"\n{'='*60}")
-        print("TRIAL PROCEEDINGS")
+        print("TRIAL PROCEEDINGS (3 PHASES)")
         print(f"{'='*60}")
         
         # Phase 1: Opening Arguments
-        print(f"\n--- OPENING ARGUMENTS ---")
+        print(f"\n--- PHASE 1: OPENING ARGUMENTS ---")
         print(f"\n[Prosecutor's Opening]")
         prosecutor_opening = self.prosecutor.make_opening_argument(self.case_evidence)
         self.arguments['prosecutor'].append(prosecutor_opening)
@@ -1064,21 +1063,20 @@ class LegalSimulation:
         print(f"Main argument: {defense_opening.main_argument}...")
         print(f"Key points: {len(defense_opening.key_points)}")
         
-        # Phase 2: Rebuttals (optional)
-        if include_rebuttals:
-            print(f"\n--- REBUTTALS ---")
-            print(f"\n[Prosecutor's Rebuttal]")
-            prosecutor_rebuttal = self.prosecutor.make_rebuttal(defense_opening, self.case_evidence)
-            self.arguments['prosecutor'].append(prosecutor_rebuttal)
-            print(f"Rebuttal: {prosecutor_rebuttal.main_argument}...")
-            
-            print(f"\n[Defense Rebuttal]")
-            defense_rebuttal = self.defense.make_rebuttal(prosecutor_opening, self.case_evidence)
-            self.arguments['defense'].append(defense_rebuttal)
-            print(f"Rebuttal: {defense_rebuttal.main_argument}...")
+        # Phase 2: Rebuttals (always included for proper adversarial exchange)
+        print(f"\n--- PHASE 2: REBUTTALS ---")
+        print(f"\n[Prosecutor's Rebuttal]")
+        prosecutor_rebuttal = self.prosecutor.make_rebuttal(defense_opening, self.case_evidence)
+        self.arguments['prosecutor'].append(prosecutor_rebuttal)
+        print(f"Rebuttal: {prosecutor_rebuttal.main_argument}...")
+        
+        print(f"\n[Defense Rebuttal]")
+        defense_rebuttal = self.defense.make_rebuttal(prosecutor_opening, self.case_evidence)
+        self.arguments['defense'].append(defense_rebuttal)
+        print(f"Rebuttal: {defense_rebuttal.main_argument}...")
         
         # Phase 3: Judge's Verdict
-        print(f"\n--- JUDGE'S VERDICT ---")
+        print(f"\n--- PHASE 3: JUDGE'S VERDICT ---")
         self.verdict = self.judge.evaluate_case(
             self.arguments['prosecutor'],
             self.arguments['defense'],
@@ -1192,7 +1190,7 @@ class MonteCarloSimulation:
                     sim.case_evidence = base_evidence
                 
                 # Run trial
-                verdict = sim.run_trial(include_rebuttals=True)
+                verdict = sim.run_trial()
                 
                 # Store result
                 result = {
@@ -1307,7 +1305,7 @@ def run_single_trial_example():
     evidence = sim.prepare_case(case_description, jurisdiction="Federal")
     
     # Run trial
-    verdict = sim.run_trial(include_rebuttals=True)
+    verdict = sim.run_trial()
     
     # Save results
     sim.save_results("trial_results.json")

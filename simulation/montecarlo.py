@@ -62,9 +62,6 @@ class SimulationVariables:
     num_statutes_cited: int = 3
     num_precedents_cited: int = 3
     
-    # Procedural factors
-    include_rebuttals: bool = True
-    
     # Additional factors
     defendant_cooperation: str = "moderate"  # hostile, moderate, cooperative
     plaintiff_damages_claim: str = "moderate"  # minimal, moderate, extensive
@@ -94,7 +91,6 @@ class SimulationVariables:
         # Always randomize these
         self.num_statutes_cited = random.randint(2, 5)
         self.num_precedents_cited = random.randint(2, 5)
-        self.include_rebuttals = random.choice([True, True, False])  # 66% chance of rebuttals
         
         # Additional factors
         self.defendant_cooperation = random.choice(["hostile", "moderate", "cooperative"])
@@ -310,26 +306,25 @@ class EnhancedMonteCarloSimulation:
             defense = DefenseAgent(strategy=variables.defense_strategy)
             judge = JudgeAgent(temperament=variables.judge_temperament)
             
-            # Run trial proceedings
+            # Run trial proceedings (3 phases: Opening, Rebuttals, Verdict)
             prosecutor_args = []
             defense_args = []
             
-            # Opening arguments
+            # Phase 1: Opening arguments
             prosecutor_opening = prosecutor.make_opening_argument(evidence)
             prosecutor_args.append(prosecutor_opening)
             
             defense_opening = defense.make_opening_argument(evidence)
             defense_args.append(defense_opening)
             
-            # Rebuttals if included
-            if variables.include_rebuttals:
-                prosecutor_rebuttal = prosecutor.make_rebuttal(defense_opening, evidence)
-                prosecutor_args.append(prosecutor_rebuttal)
-                
-                defense_rebuttal = defense.make_rebuttal(prosecutor_opening, evidence)
-                defense_args.append(defense_rebuttal)
+            # Phase 2: Rebuttals (always included)
+            prosecutor_rebuttal = prosecutor.make_rebuttal(defense_opening, evidence)
+            prosecutor_args.append(prosecutor_rebuttal)
             
-            # Judge's verdict
+            defense_rebuttal = defense.make_rebuttal(prosecutor_opening, evidence)
+            defense_args.append(defense_rebuttal)
+            
+            # Phase 3: Judge's verdict
             verdict = judge.evaluate_case(prosecutor_args, defense_args, evidence)
             
             execution_time = (datetime.now() - start_time).total_seconds()
@@ -799,7 +794,6 @@ def test_n1_simulation():
         venue_bias="neutral",
         num_statutes_cited=3,
         num_precedents_cited=3,
-        include_rebuttals=True,
         defendant_cooperation="moderate",
         plaintiff_damages_claim="extensive",
         time_since_departure=4,
@@ -812,7 +806,7 @@ def test_n1_simulation():
     print(f"  • Judge Temperament: {test_variables.judge_temperament}")
     print(f"  • Evidence Strength: {test_variables.evidence_strength}")
     print(f"  • NDA Present: {test_variables.has_nda}")
-    print(f"  • Include Rebuttals: {test_variables.include_rebuttals}")
+    print(f"  • Trial Structure: Opening → Rebuttals → Verdict (3 phases)")
     
     # Run single simulation
     result = mc_sim.run_single_simulation(1, test_variables)
